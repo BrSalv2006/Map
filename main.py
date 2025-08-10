@@ -11,7 +11,7 @@ from js import L, document, populateMap
 async def fetch_and_process_data():
     print("Fetching and processing new fire data...")
     
-    fire_data_url = "https://firms.modaps.eosdis.nasa.gov/api/area/csv/65306165019b61030df1883a79b8a495/MODIS_NRT/world/1/"
+    fire_data_url = "https://firms.modaps.eosdis.nasa.gov/api/area/csv/65306165019b61030df1883a79b8a495/MODIS_NRT/world/2/"
     
     try:
         response = await pyfetch(fire_data_url)

@@ -19,6 +19,13 @@ var map = L.map('map', {
     layers: [osm],
 });
 
+L.control.locate({
+    flyTo: true,
+    locateOptions: {
+        enableHighAccuracy: true
+    }
+}).addTo(map);
+
 var baseTree = {
     label: 'Base Layers',
     children: [
