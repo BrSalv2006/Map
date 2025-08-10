@@ -1,77 +1,112 @@
-document.addEventListener('DOMContentLoaded', function () {
-    const today_date = new Date().toISOString().split('T')[0];
+const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+});
 
-    const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-    });
+const map = L.map('map', {
+    center: [0, 0],
+    zoom: 2,
+    layers: osm,
+});
 
-    const osmHOT = L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, Tiles style by <a href="https://www.hotosm.org/" target="_blank">Humanitarian OpenStreetMap Team</a> hosted by <a href="https://openstreetmap.fr/" target="_blank">OpenStreetMap France</a>'
-    });
-
-    const map = L.map('map', {
-        center: [-16.5, 135],
-        zoom: 6,
-        layers: [osm],
-    });
-
-    const baseLayers = {
-        'OpenStreetMap': osm,
-        'OpenStreetMap.HOT': osmHOT
-    };
-
-    const layerControl = L.control.layers(baseLayers).addTo(map);
-
-    const openTopoMap = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: 'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)'
-    });
-    layerControl.addBaseLayer(openTopoMap, 'OpenTopoMap');
+const baseTree = {
+    label: 'Base Layers',
+    children: [{ label: 'OpenStreetMap', layer: osm }]
+};
+const overlaysTree = {
+    label: 'Fires by Region',
+    selectAllCheckbox: 'All Fires',
+    children: [],
+    collapsed: true
+};
+const treeControl = L.control.layers.tree(baseTree, overlaysTree, {
+    collapsed: true,
+}).addTo(map);
 
 
+fetch('http://127.0.0.1:5000/api/fires')
+    .then(response => response.json())
+    .then(data => {
+        const continents = {};
+        const areasByCountry = {};
 
+        if (data.fire_areas && data.fire_areas.length > 0) {
+            data.fire_areas.forEach(area => {
+                if (!areasByCountry[area.country]) {
+                    areasByCountry[area.country] = [];
+                }
+                const areaGeoJson = JSON.parse(area.geojson);
+                const areaLayer = L.geoJSON(areaGeoJson, {
+                    style: { color: "#ff0000", weight: 2, opacity: 0.8, fillColor: "#ff0000", fillOpacity: 0.2 }
+                }).bindPopup("A significant fire area detected.");
+                areasByCountry[area.country].push(areaLayer);
+            });
+        }
 
-    fetch(`https://firms.modaps.eosdis.nasa.gov/api/area/csv/65306165019b61030df1883a79b8a495/MODIS_NRT/world/1/${today_date}`)
-        .then(response => response.text())
-        .then(csvtext => {
-            Papa.parse(csvtext, {
-                header: true,
-                dynamicTyping: true,
-                complete: function (results) {
-                    const fireData = results.data;
-                    // Create a feature group to hold the markers
-                    const fireMarkers = L.featureGroup();
+        if (data.fire_points && data.fire_points.length > 0) {
+            data.fire_points.forEach(fire => {
+                if (fire.latitude != null && fire.longitude != null && fire.continent) {
+                    const continentName = fire.continent;
+                    const countryName = fire.country;
 
-                    fireData.forEach(fire => {
-                        if (fire.latitude && fire.longitude) {
-                            const marker = L.marker([fire.latitude, fire.longitude]);
-
-                            // Create the popup content
-                            const popupContent = `
-                            <b>Brightness:</b> ${fire.brightness} K<br>
-                            <b>Acquired:</b> ${fire.acq_date} ${String(fire.acq_time).padStart(4, '0')} UTC<br>
-                            <b>Satellite:</b> ${fire.satellite} (${fire.instrument})<br>
-                            <b>Confidence:</b> ${fire.confidence}%<br>
-                            <b>Day/Night:</b> ${fire.daynight === 'D' ? 'Day' : 'Night'}<br>
-                            <b>FRP:</b> ${fire.frp} MW
-                        `;
-
-                            marker.bindPopup(popupContent);
-                            fireMarkers.addLayer(marker);
-                        }
-                    });
-
-                    // Add the markers to the map and the layer control
-                    fireMarkers.addTo(map);
-                    layerControl.addOverlay(fireMarkers, "Fires");
-                    // Fit the map to the bounds of the markers
-                    if (fireMarkers.getLayers().length > 0) {
-                        map.fitBounds(fireMarkers.getBounds().pad(0.1));
+                    if (!continents[continentName]) continents[continentName] = {};
+                    if (!continents[continentName][countryName]) {
+                        continents[continentName][countryName] = {
+                            hotspots: L.markerClusterGroup(),
+                            areas: L.featureGroup(areasByCountry[countryName] || [])
+                        };
                     }
+
+                    const marker = L.marker([fire.latitude, fire.longitude]);
+
+                    const popupContent = `
+                        <b>Location:</b> ${fire.location}<br><hr style="margin: 4px 0;">
+                        <b>Brightness:</b> ${fire.brightness} K<br>
+                        <b>Acquired:</b> ${fire.acq_date} ${String(fire.acq_time).padStart(4, '0')} UTC<br>
+                        <b>Satellite:</b> ${fire.satellite}<br>
+                        <b>Confidence:</b> ${fire.confidence}%<br>
+                        <b>Day/Night:</b> ${fire.daynight === 'D' ? 'Day' : 'Night'}<br>
+                        <b>FRP:</b> ${fire.frp} MW
+                    `;
+                    marker.bindPopup(popupContent);
+                    continents[continentName][countryName].hotspots.addLayer(marker);
                 }
             });
-        })
-        .catch(error => console.error('Error fetching the CSV data:', error));
-});
+        }
+
+        const allCountryLayers = [];
+        const allLeafLayers = [];
+
+        for (const continent of Object.keys(continents).sort()) {
+            const countryLayersForTree = [];
+
+            for (const country of Object.keys(continents[continent]).sort()) {
+                const countryData = continents[continent][country];
+                const combinedLayer = L.layerGroup([countryData.hotspots, countryData.areas]);
+
+                countryLayersForTree.push({ label: country, layer: combinedLayer });
+                allCountryLayers.push(combinedLayer);
+
+                allLeafLayers.push(countryData.hotspots);
+                allLeafLayers.push(countryData.areas);
+            }
+
+            overlaysTree.children.push({
+                label: continent,
+                selectAllCheckbox: true,
+                children: countryLayersForTree,
+                collapsed: true
+            });
+        }
+
+        treeControl.setOverlayTree(overlaysTree);
+
+        const allFeatures = L.featureGroup(allLeafLayers);
+        if (allFeatures.getLayers().length > 0) {
+            map.fitBounds(allFeatures.getBounds().pad(0.1));
+        }
+    })
+    .catch(error => {
+        console.error('Error loading fire data:', error);
+        document.getElementById('map').innerHTML = `<div style="padding: 20px; text-align: center;"><h2>Could not load fire data.</h2><p>Please ensure your Python server is running and try again.</p></div>`;
+    });
