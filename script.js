@@ -32,11 +32,12 @@ var baseTree = {
 var overlaysTree = {
     label: 'Fires by Region',
     selectAllCheckbox: 'All Fires',
-    children: []
+    children: [],
+    collapsed: true
 };
 
 var treeControl = L.control.layers.tree(baseTree, overlaysTree, {
-    collapsed: false,
+    collapsed: true,
 }).addTo(map);
 
 function populateMap(data_json) {
@@ -103,7 +104,6 @@ function populateMap(data_json) {
     }
 
     treeControl.setOverlayTree(overlaysTree);
-    allCountryLayers.forEach(layer => map.addLayer(layer));
 
     const allFeatures = L.featureGroup(allLeafLayers);
     if (allFeatures.getLayers().length > 0) {
