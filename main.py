@@ -1,36 +1,28 @@
-from flask import Flask, jsonify, request
-from flask_cors import CORS
+import asyncio
+from pyodide.http import pyfetch
 import pandas as pd
 import geopandas as gpd
-import requests
-import io
 from sklearn.cluster import DBSCAN
 import numpy as np
+import io
+import json
+from js import L, document, populateMap
 
-app = Flask(__name__)
-CORS(app)
-
-processed_fire_data = None
-
-def fetch_and_process_data():
-    global processed_fire_data
+async def fetch_and_process_data():
     print("Fetching and processing new fire data...")
     
     fire_data_url = "https://firms.modaps.eosdis.nasa.gov/api/area/csv/65306165019b61030df1883a79b8a495/MODIS_NRT/world/1/"
     
     try:
-        response = requests.get(fire_data_url)
-        response.raise_for_status()
-        fires_df = pd.read_csv(io.StringIO(response.text))
-    except requests.RequestException as e:
-        print(f"Error fetching live CSV data: {e}")
-        return None
+        response = await pyfetch(fire_data_url)
+        if response.status != 200:
+            raise Exception(f"HTTP error! status: {response.status}")
+        
+        csv_text = await response.string()
+        fires_df = pd.read_csv(io.StringIO(csv_text))
 
-    try:
         if fires_df.empty:
-            print("No fire data was returned from the source.")
-            processed_fire_data = {"fire_areas": [], "fire_points": []}
-            return processed_fire_data
+            return {"fire_areas": [], "fire_points": []}
 
         fires_gdf = gpd.GeoDataFrame(
             fires_df,
@@ -63,7 +55,7 @@ def fetch_and_process_data():
             lambda row: f"{row['city']}, {row['country']}" if row['country'] != 'In Ocean' else 'In Ocean',
             axis=1
         )
-
+        
         fires_proj_for_areas = fires_with_city.to_crs("EPSG:3395")
         coords = np.array(list(zip(fires_proj_for_areas.geometry.x, fires_proj_for_areas.geometry.y)))
         db = DBSCAN(eps=10000, min_samples=5).fit(coords)
@@ -76,37 +68,28 @@ def fetch_and_process_data():
                 if len(cluster_points) >= 3:
                     hull = cluster_points.union_all().convex_hull
                     hull_geo = gpd.GeoSeries([hull], crs="EPSG:3395").to_crs("EPSG:4326")
-
                     area_country = cluster_points['country'].mode()[0] if not cluster_points['country'].mode().empty else 'Unknown'
-                    
                     fire_areas.append({"country": area_country, "geojson": gpd.GeoSeries(hull_geo).to_json()})
 
         fire_points_df = fires_with_city.drop(columns=['geometry'])
         fire_points_df = fire_points_df.replace({np.nan: None})
         fire_points = fire_points_df.to_dict(orient='records')
 
-        processed_fire_data = {
+        return {
             "fire_areas": fire_areas,
             "fire_points": fire_points
         }
-        print("\nData processed and cached successfully.")
 
     except Exception as e:
-        print(f"Error during local data processing: {e}")
+        print(f"Error during processing: {e}")
         return None
 
-    return processed_fire_data
+async def main():
+    data = await fetch_and_process_data()
+    if data:
+        data_json = json.dumps(data)
+        populateMap(data_json)
+    else:
+        document.getElementById('loader').innerText = 'Error processing data. Check the console.'
 
-
-@app.route('/api/fires')
-def get_fire_data():
-    if processed_fire_data is None:
-        fetch_and_process_data()
-
-    if processed_fire_data is None:
-        return jsonify({"error": "Could not retrieve or process fire data"}), 500
-
-    return jsonify(processed_fire_data)
-
-if __name__ == '__main__':
-    app.run(debug=True)
+asyncio.ensure_future(main())
