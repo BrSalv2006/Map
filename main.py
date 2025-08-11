@@ -67,10 +67,11 @@ async def fetch_and_process_data():
                 cluster_points = fires_proj_for_areas[fires_proj_for_areas['cluster'] == cluster_id]
                 if len(cluster_points) >= 3:
                     from shapely.geometry import Polygon
+
                     initial_area = cluster_points.geometry.buffer(1000).union_all()
-                    smoothing_distance = 1000
+                    smoothing_distance = 500
                     smoothed_area = initial_area.buffer(smoothing_distance).buffer(-smoothing_distance)
-                    
+
                     if hasattr(smoothed_area, 'exterior'):
                         hull = Polygon(smoothed_area.exterior)
                     else:
