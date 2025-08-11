@@ -69,8 +69,8 @@ async def fetch_and_process_data():
                     from shapely.geometry import Polygon
 
                     initial_area = cluster_points.geometry.buffer(1000).union_all()
-                    smoothing_distance = 1000
-                    smoothed_area = initial_area.buffer(smoothing_distance).buffer(-smoothing_distance).buffer(smoothing_distance).buffer(-smoothing_distance)
+                    smoothing_distance = 500
+                    smoothed_area = initial_area.buffer(smoothing_distance).buffer(-smoothing_distance)
 
                     if hasattr(smoothed_area, 'exterior'):
                         hull = Polygon(smoothed_area.exterior)
