@@ -283,9 +283,12 @@ async function initializeApp() {
     const loadBtn = document.getElementById('load-data-btn');
     const loader = document.getElementById('loader');
 
-    dayRangeSelector.addEventListener('keydown', (e) => {
-        if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') {
-            e.preventDefault();
+    dayRangeSelector.addEventListener('input', () => {
+        if (parseInt(dayRangeSelector.value) > 10) {
+            dayRangeSelector.value = 10;
+        }
+        if (parseInt(dayRangeSelector.value) < 1) {
+            dayRangeSelector.value = 1;
         }
     });
 
@@ -320,7 +323,7 @@ async function initializeApp() {
     loadBtn.addEventListener('click', () => {
         const selectedOptions = Array.from(countrySelector.selectedOptions);
         const selectedAbbreviations = selectedOptions.map(opt => opt.value);
-        const dayRange = dayRangeSelector.value;
+        const dayRange = Math.round(dayRangeSelector.value, 0);
 
         if (selectedAbbreviations.length === 0) {
             window.alert('Please select at least one country.');
