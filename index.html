@@ -3,24 +3,33 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Fire Map with PyScript</title>
+        <title>Global Fire Map</title>
         <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
         <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
         <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
         <link rel="stylesheet" href="https://unpkg.com/leaflet.control.layers.tree/L.Control.Layers.Tree.css" />
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol/dist/L.Control.Locate.min.css" />
-        <link rel="stylesheet" href="./style.css" />
-        <link rel="stylesheet" href="https://pyscript.net/releases/2025.7.3/core.css">
-        <script type="module" src="https://pyscript.net/releases/2025.7.3/core.js"></script>
+        <link rel="stylesheet" href="style.css">
     </head>
     <body>
         <div id="map"></div>
-        <div id="loader" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-family: sans-serif; font-size: 1.5em; background: rgba(255,255,255,0.8); padding: 20px; border-radius: 10px; z-index: 1000;"> Loading Python and Processing Data... </div>
-        <script type="py" src="./main.py" config="./pyscript.toml" terminal></script>
+        <div id="controls-container">
+            <h3>Select Countries</h3>
+            <p>Hold Ctrl/Cmd to select multiple</p>
+            <select id="country-selector" multiple size="10"></select>
+            <label for="day-range-selector">Day Range (1-10):</label>
+            <input type="number" id="day-range-selector" min="1" max="10" value="1">
+            <button id="load-data-btn">Load Fire Data</button>
+        </div>
+        <div id="loader" style="display: none;"> Loading and Processing Geospatial Data... </div>
         <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
         <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
         <script src="https://unpkg.com/leaflet.control.layers.tree/L.Control.Layers.Tree.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol/dist/L.Control.Locate.min.js" charset="utf-8"></script>
-        <script src="./script.js"></script>
+        <script src="https://unpkg.com/shpjs@latest/dist/shp.js"></script>
+        <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+        <script src="https://unpkg.com/papaparse@5.3.2/papaparse.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.7.5/proj4.js"></script>
+        <script src="script.js"></script>
     </body>
 </html>
