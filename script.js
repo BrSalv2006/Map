@@ -82,7 +82,7 @@ function populateMap(data_json) {
                 }
 
                 const marker = L.marker([fire.latitude, fire.longitude]);
-                const popupContent = `<b>Location:</b> ${fire.location}<br><hr style="margin: 4px 0;"><b>Brightness:</b> ${fire.brightness} K<br><b>Acquired:</b> ${fire.acq_date} ${String(fire.acq_time).padStart(4, '0')} UTC<br><b>Satellite:</b> ${fire.satellite}<br><b>Confidence:</b> ${fire.confidence}%<br><b>Day/Night:</b> ${fire.daynight === 'D' ? 'Day' : 'Night'}<br><b>FRP:</b> ${fire.frp} MW`;
+                const popupContent = `<b>Location:</b> ${fire.location}<br><hr style="margin: 4px 0;"><b>Brightness:</b> ${fire.brightness} K<br><b>Acquired:</b> ${fire.acq_date} ${String(fire.acq_time).padStart(4, '0')} UTC<br><b>Satellite:</b> ${fire.satellite}<br><b>Confidence:</b> ${fire.confidence}%<br><b>Day/Night:</b> ${fire.daynight === 'D' ? 'Day' : 'Night'}<br><b>FRP:</b> ${fire.frp} MW<br><b>Burnt Area:</b> ${fire.area_km2} MW`;
                 marker.bindPopup(popupContent);
                 continents[continentName][countryName].hotspots.addLayer(marker);
             }

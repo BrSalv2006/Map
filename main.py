@@ -66,7 +66,15 @@ async def fetch_and_process_data():
             if cluster_id != -1:
                 cluster_points = fires_proj_for_areas[fires_proj_for_areas['cluster'] == cluster_id]
                 if len(cluster_points) >= 3:
-                    hull = cluster_points.union_all().convex_hull
+                    from shapely.geometry import Polygon
+                    initial_area = cluster_points.geometry.buffer(1000).union_all()
+                    smoothing_distance = 1000
+                    smoothed_area = initial_area.buffer(smoothing_distance).buffer(-smoothing_distance)
+                    
+                    if hasattr(smoothed_area, 'exterior'):
+                        hull = Polygon(smoothed_area.exterior)
+                    else:
+                        hull = smoothed_area
                     hull_geo = gpd.GeoSeries([hull], crs="EPSG:3395").to_crs("EPSG:4326")
                     area_country = cluster_points['country'].mode()[0] if not cluster_points['country'].mode().empty else 'Unknown'
                     fire_areas.append({"country": area_country, "geojson": gpd.GeoSeries(hull_geo).to_json()})
