@@ -1,93 +1,135 @@
-var osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-    attribution: '© OpenStreetMap'
-});
-
-var osmHOT = L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-    attribution: '© OpenStreetMap contributors, Tiles style by Humanitarian OpenStreetMap Team hosted by OpenStreetMap France'
-});
-
-var openTopoMap = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-    attribution: 'Map data: © OpenStreetMap contributors, SRTM | Map style: © OpenTopoMap (CC-BY-SA)'
-});
-
-
-var map = L.map('map', {
+const MAP_CONFIG = {
     center: [0, 0],
     zoom: 2,
-    layers: [osm],
-});
+    layers: [
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap'
+        })
+    ]
+};
 
-L.control.locate({
-    flyTo: true,
-    locateOptions: {
-        enableHighAccuracy: true
-    }
-}).addTo(map);
-
-var baseTree = {
+const BASE_LAYERS = {
     label: 'Base Layers',
     children: [{
         label: 'OpenStreetMap',
-        layer: osm
+        layer: MAP_CONFIG.layers[0]
     }, {
         label: 'OpenStreetMap HOT',
-        layer: osmHOT
+        layer: L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap contributors, Tiles style by Humanitarian OpenStreetMap Team hosted by OpenStreetMap France'
+        })
     }, {
         label: 'OpenTopoMap',
-        layer: openTopoMap
+        layer: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: 'Map data: © OpenStreetMap contributors, SRTM | Map style: © OpenTopoMap (CC-BY-SA)'
+        })
     }]
 };
 
-var overlaysTree;
-
-var treeControl = L.control.layers.tree(baseTree, null, {
-    collapsed: true,
-});
-
-treeControl.addTo(map);
-
+let map;
+let treeControl;
 let allCountriesGeoJSON;
+let currentWorker = null;
+let currentOverlayTree = null;
+
+function initializeMap() {
+    map = L.map('map', MAP_CONFIG);
+    L.control.locate({
+        flyTo: true,
+        locateOptions: {
+            enableHighAccuracy: true
+        }
+    }).addTo(map);
+    treeControl = L.control.layers.tree(BASE_LAYERS, null, {
+        collapsed: true
+    });
+    treeControl.addTo(map);
+}
 
 function resetOverlays() {
-    if (overlaysTree && overlaysTree.children) {
-        overlaysTree.children.forEach(continent => {
+    if (currentOverlayTree && currentOverlayTree.children) {
+        currentOverlayTree.children.forEach(continent => {
             if (continent.children) {
                 continent.children.forEach(country => {
-                    map.removeLayer(country.layer);
+                    if (map.hasLayer(country.layer)) {
+                        map.removeLayer(country.layer);
+                    }
                 });
             }
         });
     }
-    overlaysTree = {
+    currentOverlayTree = null;
+}
+
+function createLayersForCountry(countryData) {
+    const hotspots = L.markerClusterGroup({
+        maxClusterRadius: 40
+    });
+    const areas = L.featureGroup();
+
+    countryData.points.forEach(point => {
+        const marker = L.marker([point.geometry.coordinates[1], point.geometry.coordinates[0]]);
+        const p = point.properties;
+        const popupContent = `<b>Location:</b> ${p.location}<br><hr style="margin: 4px 0;"><b>Brightness:</b> ${p.brightness} K<br><b>Acquired:</b> ${p.acq_date} ${p.acq_time} UTC<br><b>Satellite:</b> ${p.satellite}<br><b>Confidence:</b> ${p.confidence}<br><b>Day/Night:</b> ${p.daynight}<br><b>FRP:</b> ${p.frp} MW`;
+        marker.bindPopup(popupContent);
+        hotspots.addLayer(marker);
+    });
+
+    if (countryData.areas && countryData.areas.features.length > 0) {
+        const areaLayer = L.geoJSON(countryData.areas, {
+            style: {
+                color: "#ff0000",
+                weight: 2,
+                opacity: 0.8,
+                fillColor: "#ff0000",
+                fillOpacity: 0.2
+            },
+            onEachFeature: (feature, layer) => {
+                const area_sq_km = turf.area(feature) / 1000000;
+                layer.bindPopup(`Burnt Area: ${Math.round(area_sq_km)} KM²`);
+            }
+        });
+        areas.addLayer(areaLayer);
+    }
+    return {
+        hotspots,
+        areas
+    };
+}
+
+function populateMap(data) {
+    const loader = document.getElementById('loader');
+    loader.innerText = 'Generating map layers...';
+    resetOverlays();
+
+    const newOverlayTree = {
         label: 'Fires by Region',
         selectAllCheckbox: 'All Fires',
         children: [],
         collapsed: true
     };
-}
-
-function populateMap(data) {
-    document.getElementById('loader').style.display = 'none';
-    resetOverlays();
-
     const allLeafLayers = [];
 
     for (const continent of Object.keys(data).sort()) {
         const countryLayersForTree = [];
         for (const country of Object.keys(data[continent]).sort()) {
             const countryData = data[continent][country];
-            const combinedLayer = L.layerGroup([countryData.hotspots, countryData.areas]);
+            const {
+                hotspots,
+                areas
+            } = createLayersForCountry(countryData);
+            const combinedLayer = L.layerGroup([hotspots, areas]);
+
             countryLayersForTree.push({
                 label: `${country} (${countryData.points.length})`,
                 layer: combinedLayer
             });
-            allLeafLayers.push(countryData.hotspots);
-            allLeafLayers.push(countryData.areas);
+            allLeafLayers.push(hotspots, areas);
         }
-        overlaysTree.children.push({
+        newOverlayTree.children.push({
             label: continent,
             selectAllCheckbox: true,
             children: countryLayersForTree,
@@ -95,238 +137,59 @@ function populateMap(data) {
         });
     }
 
-    treeControl.setOverlayTree(overlaysTree);
-    const allFeatures = L.featureGroup(allLeafLayers);
-    if (allFeatures.getLayers().length > 0) {
-        map.fitBounds(allFeatures.getBounds().pad(0.1));
+    treeControl.setOverlayTree(newOverlayTree);
+    currentOverlayTree = newOverlayTree;
+
+    if (allLeafLayers.length > 0) {
+        const allFeatures = L.featureGroup(allLeafLayers);
+        if (allFeatures.getLayers().length > 0) {
+            map.fitBounds(allFeatures.getBounds().pad(0.1));
+        }
     }
+    loader.style.display = 'none';
 }
 
-async function fetchAndProcessData(selectedCountryNames, dayRange, selectedSatellite) {
+function startWorker(params) {
+    if (currentWorker) {
+        currentWorker.terminate();
+    }
     const loader = document.getElementById('loader');
     loader.style.display = 'block';
-    loader.innerText = `Fetching data for ${selectedCountryNames.length} countries...`;
+    loader.innerText = 'Starting data processing...';
+    currentWorker = new Worker('worker.js');
 
-    try {
-        const selectedFeatures = allCountriesGeoJSON.features.filter(f => selectedCountryNames.includes(f.properties.ADMIN));
-        const combinedBbox = turf.bbox(turf.featureCollection(selectedFeatures));
-
-        const endDate = new Date().getTime();
-        const startDate = endDate - (dayRange * 86400000);
-
-        const geometryParam = {
-            xmin: combinedBbox[0],
-            ymin: combinedBbox[1],
-            xmax: combinedBbox[2],
-            ymax: combinedBbox[3],
-            spatialReference: {
-                "wkid": 4326
-            }
-        };
-
-        const baseParams = {
-            returnGeometry: true,
-            time: `${startDate}, ${endDate}`,
-            outSR: 4326,
-            outFields: '*',
-            inSR: 4326,
-            geometry: JSON.stringify(geometryParam),
-            geometryType: 'esriGeometryEnvelope',
-            spatialRel: 'esriSpatialRelIntersects',
-            f: 'geojson'
-        };
-
-        const apiEndpoints = {
-            modis: 'https://services9.arcgis.com/RHVPKKiFTONKtxq3/ArcGIS/rest/services/MODIS_Thermal_v1/FeatureServer/0/query',
-            viirs: 'https://services9.arcgis.com/RHVPKKiFTONKtxq3/arcgis/rest/services/Satellite_VIIRS_Thermal_Hotspots_and_Fire_Activity/FeatureServer/0/query'
-        };
-
-        const fetchPromises = [];
-
-        if (selectedSatellite === 'modis' || selectedSatellite === 'both') {
-            const modisParams = new URLSearchParams(baseParams);
-            fetchPromises.push(fetch(`${apiEndpoints.modis}?${modisParams.toString()}`).then(res => res.json()));
-        }
-        if (selectedSatellite === 'viirs' || selectedSatellite === 'both') {
-            const viirsParams = new URLSearchParams(baseParams);
-            fetchPromises.push(fetch(`${apiEndpoints.viirs}?${viirsParams.toString()}`).then(res => res.json()));
-        }
-        
-        const [citiesResponse, ...fireDataResponses] = await Promise.all([
-            fetch('cities1000.txt'),
-            ...fetchPromises
-        ]);
-
-        loader.innerText = 'Processing data...';
-
-        let fireFeatures = [];
-        fireDataResponses.forEach(response => {
-            if (response.features) {
-                fireFeatures = fireFeatures.concat(response.features);
-            }
-        });
-
-
-        if (!fireFeatures || fireFeatures.length === 0) {
-            alert("No recent fire data found for the selected country/countries and satellite(s).");
+    currentWorker.onmessage = (e) => {
+        const {
+            type,
+            message,
+            data
+        } = e.data;
+        if (type === 'progress') {
+            loader.innerText = message;
+        } else if (type === 'result') {
+            populateMap(data);
+            currentWorker.terminate();
+            currentWorker = null;
+        } else if (type === 'error') {
+            alert(message);
             loader.style.display = 'none';
-            return;
+            currentWorker.terminate();
+            currentWorker = null;
         }
+    };
 
-        const firePoints = fireFeatures.map(f => {
-            const props = f.properties;
+    currentWorker.onerror = (e) => {
+        console.error('Error in worker:', e);
+        loader.innerText = 'An error occurred during processing.';
+        alert('A critical error occurred in the worker. Check the console for details.');
+        currentWorker.terminate();
+        currentWorker = null;
+    };
 
-            const acq_date = props.ACQ_DATE || props.acq_date;
-            const acq_time = props.ACQ_TIME || props.acq_time;
-            const brightness = props.BRIGHTNESS || props.bright_ti4;
-            const satellite = props.SATELLITE || props.satellite;
-            const confidence = props.CONFIDENCE || props.confidence;
-            const daynight = props.DAYNIGHT || props.daynight;
-            const frp = props.FRP || props.frp;
-
-            const date = new Date(acq_date);
-            const time = String(acq_time || '0000').padStart(4, '0');
-
-            const properties = {
-                latitude: f.geometry.coordinates[1],
-                longitude: f.geometry.coordinates[0],
-                brightness: brightness,
-                acq_date: date.toISOString().split('T')[0],
-                acq_time: time,
-                satellite: satellite,
-                confidence: confidence,
-                daynight: daynight,
-                frp: frp,
-            };
-            return turf.point(f.geometry.coordinates, properties);
-        });
-
-        const citiesText = await citiesResponse.text();
-        const cityCols = ['geonameid', 'name', 'asciiname', 'alternatenames', 'latitude', 'longitude', 'feature_class', 'feature_code', 'country_code', 'cc2', 'admin1_code', 'admin2_code', 'admin3_code', 'admin4_code', 'population', 'elevation', 'dem', 'timezone', 'modification_date'];
-        const citiesData = Papa.parse(citiesText, {
-            delimiter: '\t',
-            header: false,
-            skipEmptyLines: true,
-            comments: false
-        }).data.map(row => {
-            const cityObj = {};
-            cityCols.forEach((col, i) => cityObj[col] = row[i]);
-            return cityObj;
-        });
-
-        const cityPoints = turf.featureCollection(citiesData.map(c => turf.point([c.longitude, c.latitude], {
-            name: c.name
-        })));
-
-        const finalData = {};
-
-        firePoints.forEach(firePoint => {
-            let foundCountry = false;
-            for (const country of allCountriesGeoJSON.features) {
-                if (turf.booleanPointInPolygon(firePoint, country)) {
-                    firePoint.properties.country = country.properties.ADMIN;
-                    firePoint.properties.continent = country.properties.CONTINENT;
-                    foundCountry = true;
-                    break;
-                }
-            }
-
-            if (!foundCountry) {
-                firePoint.properties.country = 'In Ocean';
-                firePoint.properties.continent = 'Ocean';
-            }
-
-            const nearestCity = turf.nearestPoint(firePoint, cityPoints);
-            const distance = turf.distance(firePoint, nearestCity, {
-                units: 'kilometers'
-            });
-            if (distance < 200) {
-                firePoint.properties.city = nearestCity.properties.name;
-            } else {
-                firePoint.properties.city = 'Remote Area';
-            }
-            firePoint.properties.location = firePoint.properties.country !== 'In Ocean' ? `${firePoint.properties.city}, ${firePoint.properties.country}` : 'In Ocean';
-
-
-            const continentName = firePoint.properties.continent;
-            const countryName = firePoint.properties.country;
-
-            if (!finalData[continentName]) finalData[continentName] = {};
-            if (!finalData[continentName][countryName]) {
-                finalData[continentName][countryName] = {
-                    hotspots: L.markerClusterGroup({maxClusterRadius: 40}),
-                    areas: L.featureGroup(),
-                    points: []
-                };
-            }
-            finalData[continentName][countryName].points.push(firePoint);
-        });
-
-        for (const continent of Object.keys(finalData)) {
-            for (const country of Object.keys(finalData[continent])) {
-                const countryData = finalData[continent][country];
-
-                countryData.points.forEach(point => {
-                    const marker = L.marker([point.geometry.coordinates[1], point.geometry.coordinates[0]]);
-                    const p = point.properties;
-                    const popupContent = `<b>Location:</b> ${p.location}<br><hr style="margin: 4px 0;"><b>Brightness:</b> ${p.brightness} K<br><b>Acquired:</b> ${p.acq_date} ${p.acq_time} UTC<br><b>Satellite:</b> ${p.satellite}<br><b>Confidence:</b> ${p.confidence}<br><b>Day/Night:</b> ${p.daynight}<br><b>FRP:</b> ${p.frp} MW`;
-                    marker.bindPopup(popupContent);
-                    countryData.hotspots.addLayer(marker);
-                });
-
-                if (countryData.points.length > 1) {
-                    const bufferedPolygons = countryData.points.map(point => turf.buffer(point, 1000, {
-                        units: 'meters'
-                    }));
-                    
-                    try {
-                        let unionedPolygon = bufferedPolygons[0];
-                        for (let i = 1; i < bufferedPolygons.length; i++) {
-                            if (bufferedPolygons[i]) {
-                                const result = turf.union(unionedPolygon, bufferedPolygons[i]);
-                                if (result) {
-                                    unionedPolygon = result;
-                                }
-                            }
-                        }
-
-                        if (unionedPolygon && unionedPolygon.geometry && unionedPolygon.geometry.coordinates) {
-                            const expanded = turf.buffer(unionedPolygon, 500, { units: 'meters' });
-                            if (expanded) {
-                                const smoothedPolygon = turf.buffer(expanded, -500, { units: 'meters' });
-                                if (smoothedPolygon) {
-                                    const area_sq_km = turf.area(smoothedPolygon) / 1000000;
-                                    const areaLayer = L.geoJSON(smoothedPolygon, {
-                                        style: {
-                                            color: "#ff0000",
-                                            weight: 2,
-                                            opacity: 0.8,
-                                            fillColor: "#ff0000",
-                                            fillOpacity: 0.2
-                                        }
-                                    }).bindPopup(`Burnt Area: ${Math.round(area_sq_km)} KM²`);
-                                    countryData.areas.addLayer(areaLayer);
-                                }
-                            }
-                        }
-                    } catch (e) {
-                         console.error("Error during turf.union, likely due to complex geometry:", e);
-                    }
-                }
-            }
-        }
-        populateMap(finalData);
-    } catch (e) {
-        console.error("Error during processing:", e);
-        loader.innerText = 'Error processing data. Check the console.';
-        alert(`An error occurred: ${e.message}. Please check the console for more details.`);
-    } finally {
-        loader.style.display = 'none';
-    }
+    currentWorker.postMessage(params);
 }
 
-
-async function initializeApp() {
+async function setupControls() {
     const countrySelector = document.getElementById('country-selector');
     const dayRangeSelector = document.getElementById('day-range-selector');
     const satelliteSelector = document.getElementById('satellite-selector');
@@ -334,58 +197,53 @@ async function initializeApp() {
     const loader = document.getElementById('loader');
 
     dayRangeSelector.addEventListener('input', () => {
-        if (parseInt(dayRangeSelector.value) > 10) {
-            dayRangeSelector.value = 10;
-        }
+        if (parseInt(dayRangeSelector.value) > 10) dayRangeSelector.value = 10;
     });
-
     dayRangeSelector.addEventListener('blur', () => {
-        if (dayRangeSelector.value === '' || parseInt(dayRangeSelector.value) < 1) {
-            dayRangeSelector.value = 1;
-        }
+        if (dayRangeSelector.value === '' || parseInt(dayRangeSelector.value) < 1) dayRangeSelector.value = 1;
     });
 
     try {
         loader.style.display = 'block';
-        loader.innerText = 'Loading country data...';
+        loader.innerText = 'Loading initial data...';
         const baseUrl = window.location.href.substring(0, window.location.href.lastIndexOf('/'));
         const shapefilePath = `${baseUrl}/ne_110m_admin_0_countries`;
         allCountriesGeoJSON = await shp(shapefilePath);
 
         const countries = allCountriesGeoJSON.features
-            .map(feature => ({
-                name: feature.properties.ADMIN,
-                abbr: feature.properties.ISO_A3
-            }))
-            .filter(c => c.name && c.abbr !== "-99");
-
-        countries.sort((a, b) => a.name.localeCompare(b.name));
+            .map(f => f.properties.ADMIN)
+            .filter(name => name && name !== "-99")
+            .sort((a, b) => a.localeCompare(b));
 
         countries.forEach(country => {
             const option = document.createElement('option');
-            option.value = country.name;
-            option.textContent = country.name;
+            option.value = country;
+            option.textContent = country;
             countrySelector.appendChild(option);
         });
+
         loader.style.display = 'none';
     } catch (error) {
-        console.error("Failed to load country list:", error);
-        loader.innerText = 'Could not load country list.';
+        console.error("Failed to load initial data:", error);
+        loader.innerText = 'Could not load initial data.';
     }
 
     loadBtn.addEventListener('click', () => {
-        const selectedOptions = Array.from(countrySelector.selectedOptions);
-        const selectedCountryNames = selectedOptions.map(opt => opt.value);
-        const dayRange = dayRangeSelector.value;
-        const selectedSatellite = satelliteSelector.value;
-
+        const selectedCountryNames = Array.from(countrySelector.selectedOptions).map(opt => opt.value);
         if (selectedCountryNames.length === 0) {
             alert('Please select at least one country.');
             return;
         }
-
-        fetchAndProcessData(selectedCountryNames, dayRange, selectedSatellite);
+        startWorker({
+            selectedCountryNames,
+            dayRange: dayRangeSelector.value,
+            selectedSatellite: satelliteSelector.value,
+            allCountriesGeoJSON
+        });
     });
 }
 
-window.onload = initializeApp;
+window.onload = () => {
+    initializeMap();
+    setupControls();
+};
