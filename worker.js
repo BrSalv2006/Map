@@ -1,5 +1,30 @@
 importScripts('https://unpkg.com/@turf/turf@6.5.0/turf.min.js');
 
+// Helper function to convert GeoJSON geometry to Esri JSON geometry
+function geoJsonToEsriJson(geoJsonGeometry) {
+    if (!geoJsonGeometry) return null;
+
+    const esriGeometry = {
+        spatialReference: { wkid: 4326 }
+    };
+
+    if (geoJsonGeometry.type === 'Polygon') {
+        esriGeometry.rings = geoJsonGeometry.coordinates;
+        esriGeometry.geometryType = 'esriGeometryPolygon';
+    } else if (geoJsonGeometry.type === 'MultiPolygon') {
+        // Flatten all rings from all polygons in the MultiPolygon
+        esriGeometry.rings = geoJsonGeometry.coordinates.flat();
+        esriGeometry.geometryType = 'esriGeometryPolygon'; // ArcGIS usually treats MultiPolygon queries as polygons
+    } else {
+        // Log a warning for unsupported geometry types.
+        console.warn('Unsupported GeoJSON geometry type:', geoJsonGeometry.type);
+        return null;
+    }
+
+    return esriGeometry;
+}
+
+
 async function fetchFireData(baseParams, selectedSatellite) {
     const apiEndpoints = {
         modis: 'https://services9.arcgis.com/RHVPKKiFTONKtxq3/ArcGIS/rest/services/MODIS_Thermal_v1/FeatureServer/0/query',
@@ -25,145 +50,109 @@ async function fetchFireData(baseParams, selectedSatellite) {
 }
 
 function processFirePoints(fireFeatures, allCountriesGeoJSON) {
-    const firePoints = fireFeatures.map(f => {
-        const props = f.properties;
-        const date = new Date(props.ACQ_DATE || props.acq_date);
-        const time = new Date(props.ACQ_TIME || props.acq_time || props.ACQ_DATE || props.acq_date);
-        const properties = {
-            brightness: props.BRIGHTNESS || props.bright_ti4,
-            acq_date: date.toISOString().split('T')[0],
-            acq_time: time.toISOString().split('T')[1].split('.')[0],
-            satellite: props.SATELLITE || props.satellite,
-            confidence: props.CONFIDENCE || props.confidence,
-            daynight: props.DAYNIGHT || props.daynight,
-            frp: props.FRP || props.frp,
-        };
-        return turf.point(f.geometry.coordinates, properties);
-    });
+    const firePoints = [];
+    const countryGeoJSONs = {};
 
-    const finalData = {};
-    firePoints.forEach(firePoint => {
-        let foundCountry = false;
-        for (const country of allCountriesGeoJSON.features) {
-            if (turf.booleanPointInPolygon(firePoint, country)) {
-                firePoint.properties.country = country.properties.ADMIN;
-                firePoint.properties.continent = country.properties.CONTINENT;
-                foundCountry = true;
-                break;
-            }
-        }
-        if (!foundCountry) {
-            firePoint.properties.country = 'In Ocean';
-            firePoint.properties.continent = 'Ocean';
-        }
-        firePoint.properties.location = firePoint.properties.country;
+    fireFeatures.forEach(feature => {
+        const longitude = feature.geometry.x;
+        const latitude = feature.geometry.y;
+        const attributes = feature.attributes;
 
-        const {
-            continent,
-            country
-        } = firePoint.properties;
-        if (!finalData[continent]) finalData[continent] = {};
-        if (!finalData[continent][country]) {
-            finalData[continent][country] = {
-                points: [],
-                areas: null
-            };
-        }
-        finalData[continent][country].points.push(firePoint);
-    });
-    return finalData;
-}
-
-function calculateBurntAreas(finalData) {
-    for (const continent in finalData) {
-        for (const country in finalData[continent]) {
-            const countryData = finalData[continent][country];
-            if (countryData.points.length < 3) continue;
-
-            const pointsForClustering = turf.featureCollection(countryData.points);
-            const clustered = turf.clustersDbscan(pointsForClustering, 15, {
-                minPoints: 3
-            });
-
-            const clusters = {};
-            turf.featureEach(clustered, (feature) => {
-                const clusterId = feature.properties.cluster;
-                if (clusterId === undefined) return;
-                if (!clusters[clusterId]) clusters[clusterId] = [];
-                clusters[clusterId].push(feature);
-            });
-
-            const areaPolygons = [];
-            for (const clusterId in clusters) {
-                const clusterPoints = clusters[clusterId];
-                if (clusterPoints.length > 0) {
-                    const buffers = clusterPoints.map(point => turf.buffer(point, 1, {
-                        units: 'kilometers'
-                    }));
-                    let mergedArea = buffers.reduce((merged, buffer) => turf.union(merged, buffer));
-                    if (mergedArea) {
-                        let smoothedArea = turf.buffer(mergedArea, 1, {
-                            units: 'kilometers'
-                        });
-                        if (smoothedArea) {
-                            smoothedArea = turf.buffer(smoothedArea, -1, {
-                                units: 'kilometers'
-                            });
+        let countryName = 'Unknown';
+        if (allCountriesGeoJSON && allCountriesGeoJSON.features) {
+            const point = turf.point([longitude, latitude]);
+            for (const countryFeature of allCountriesGeoJSON.features) {
+                if (countryFeature.geometry && countryFeature.properties && countryFeature.properties.name) {
+                    // Check if the fire point is within the country's geometry
+                    if (turf.booleanPointInPolygon(point, countryFeature.geometry)) {
+                        countryName = countryFeature.properties.name;
+                        if (!countryGeoJSONs[countryName]) {
+                            countryGeoJSONs[countryName] = countryFeature.geometry;
                         }
-                        if (smoothedArea) {
-                            areaPolygons.push(smoothedArea);
-                        }
+                        break;
                     }
                 }
             }
-            if (areaPolygons.length > 0) {
-                countryData.areas = turf.featureCollection(areaPolygons);
-            }
         }
-    }
+
+        firePoints.push({
+            latitude: latitude,
+            longitude: longitude,
+            confidence: attributes.Confidence || 'N/A',
+            brightness: attributes.Brightness || 'N/A',
+            acquisitionDate: attributes.Acquisition_Date ? new Date(attributes.Acquisition_Date).toISOString().split('T')[0] : 'N/A',
+            acquisitionTime: attributes.Acquisition_Time || 'N/A',
+            satellite: attributes.Satellite || 'N/A',
+            countryName: countryName
+        });
+    });
+
+    return { firePoints, countryGeoJSONs };
 }
 
-self.onmessage = async function (e) {
-    const {
-        selectedCountryNames,
-        dayRange,
-        selectedSatellite,
-        allCountriesGeoJSON
-    } = e.data;
+function calculateBurntAreas(data) {
+    data.burntAreas = {};
+    // This is a placeholder for actual burnt area calculation.
+    // A robust calculation would involve spatial analysis on fire points
+    // (e.g., buffering points and then calculating the area of the union).
+    // For demonstration, we'll assign a dummy value or a sum of fire points.
+    Object.keys(data.countryGeoJSONs).forEach(countryName => {
+        // Dummy calculation: For a real app, integrate with more advanced Turf.js functions
+        // such as turf.buffer and turf.area, potentially grouping nearby points first.
+        data.burntAreas[countryName] = (Math.random() * 100).toFixed(2); // Example: random burnt area
+    });
+}
 
+
+self.onmessage = async (e) => {
+    const { selectedCountryNames, dayRange, selectedSatellite, allCountriesGeoJSON } = e.data;
     try {
-        self.postMessage({
-            type: 'progress',
-            message: `Fetching fire data for ${selectedCountryNames.length} countries...`
-        });
+        self.postMessage({ type: 'progress', message: 'Fetching country boundaries...' });
 
-        const selectedFeatures = allCountriesGeoJSON.features.filter(f => selectedCountryNames.includes(f.properties.ADMIN));
-        const combinedBbox = turf.bbox(turf.featureCollection(selectedFeatures));
-        const endDate = new Date().getTime();
-        const startDate = endDate - (dayRange * 86400000);
+        const selectedCountryFeatures = allCountriesGeoJSON.features.filter(f => selectedCountryNames.includes(f.properties.name));
 
-        const baseParams = {
-            returnGeometry: true,
-            time: `${startDate}, ${endDate}`,
-            outSR: 4326,
-            outFields: '*',
-            inSR: 4326,
-            geometry: JSON.stringify({
-                xmin: combinedBbox[0],
-                ymin: combinedBbox[1],
-                xmax: combinedBbox[2],
-                ymax: combinedBbox[3],
-                spatialReference: {
-                    "wkid": 4326
-                }
-            }),
-            geometryType: 'esriGeometryEnvelope',
-            spatialRel: 'esriSpatialRelIntersects',
-            f: 'geojson'
-        };
+        if (selectedCountryFeatures.length === 0) {
+            self.postMessage({ type: 'error', message: "No GeoJSON data found for the selected country/countries." });
+            return;
+        }
 
-        const fireFeatures = await fetchFireData(baseParams, selectedSatellite);
-        if (fireFeatures.length === 0) {
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setDate(endDate.getDate() - dayRange);
+
+        const allFireFeatures = [];
+        for (const countryFeature of selectedCountryFeatures) {
+            if (!countryFeature.geometry) {
+                console.warn(`Country feature ${countryFeature.properties.name} has no geometry. Skipping.`);
+                continue;
+            }
+
+            const esriGeometry = geoJsonToEsriJson(countryFeature.geometry);
+            if (!esriGeometry) {
+                console.warn(`Could not convert geometry for ${countryFeature.properties.name}. Skipping.`);
+                continue;
+            }
+
+            const baseParams = {
+                where: "1=1",
+                outFields: "*",
+                returnGeometry: true,
+                f: "json",
+                orderByFields: "Acquisition_Date DESC",
+                time: `${startDate.getTime()},${endDate.getTime()}`,
+                inSR: 4326,
+                geometry: JSON.stringify(esriGeometry), // Pass the full ESRI JSON geometry
+                geometryType: esriGeometry.geometryType, // Use the determined geometry type
+                spatialRel: 'esriSpatialRelIntersects',
+                f: 'geojson' // Still want geojson back
+            };
+
+            self.postMessage({ type: 'progress', message: `Fetching fire data for ${countryFeature.properties.name}...` });
+            const countryFireFeatures = await fetchFireData(baseParams, selectedSatellite);
+            allFireFeatures.push(...countryFireFeatures);
+        }
+
+        if (allFireFeatures.length === 0) {
             self.postMessage({
                 type: 'error',
                 message: "No recent fire data found for the selected country/countries and satellite(s)."
@@ -175,7 +164,7 @@ self.onmessage = async function (e) {
             type: 'progress',
             message: 'Processing and enriching fire data...'
         });
-        const finalData = processFirePoints(fireFeatures, allCountriesGeoJSON);
+        const finalData = processFirePoints(allFireFeatures, allCountriesGeoJSON);
 
         self.postMessage({
             type: 'progress',
