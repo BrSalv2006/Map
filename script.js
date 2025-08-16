@@ -206,12 +206,16 @@ async function setupControls() {
     try {
         loader.style.display = 'block';
         loader.innerText = 'Loading initial data...';
-        const baseUrl = window.location.href.substring(0, window.location.href.lastIndexOf('/'));
-        const shapefilePath = `${baseUrl}/ne_110m_admin_0_countries`;
-        allCountriesGeoJSON = await shp(shapefilePath);
+
+        let response = await fetch('countries.json');
+        if (!response.ok) {
+            throw new Error('Failed to load countries data');
+        } else {
+            allCountriesGeoJSON = await response.json();
+        }
 
         const countries = allCountriesGeoJSON.features
-            .map(f => f.properties.ADMIN)
+            .map(f => f.properties.admin)
             .filter(name => name && name !== "-99")
             .sort((a, b) => a.localeCompare(b));
 

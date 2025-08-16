@@ -46,8 +46,8 @@ function processFirePoints(fireFeatures, allCountriesGeoJSON) {
         let foundCountry = false;
         for (const country of allCountriesGeoJSON.features) {
             if (turf.booleanPointInPolygon(firePoint, country)) {
-                firePoint.properties.country = country.properties.ADMIN;
-                firePoint.properties.continent = country.properties.CONTINENT;
+                firePoint.properties.country = country.properties.admin;
+                firePoint.properties.continent = country.properties.continent;
                 foundCountry = true;
                 break;
             }
@@ -137,7 +137,7 @@ self.onmessage = async function (e) {
             message: `Fetching fire data for ${selectedCountryNames.length} countries...`
         });
 
-        const selectedFeatures = allCountriesGeoJSON.features.filter(f => selectedCountryNames.includes(f.properties.ADMIN));
+        const selectedFeatures = allCountriesGeoJSON.features.filter(f => selectedCountryNames.includes(f.properties.admin));
         const combinedBbox = turf.bbox(turf.featureCollection(selectedFeatures));
         const endDate = new Date().getTime();
         const startDate = endDate - (dayRange * 86400000);
