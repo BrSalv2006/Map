@@ -27,15 +27,13 @@ async function fetchFireData(baseParams, selectedSatellite) {
 function processFirePoints(fireFeatures, allCountriesGeoJSON) {
     const firePoints = fireFeatures.map(f => {
         const props = f.properties;
-        const date = new Date(props.ACQ_DATE || props.acq_date);
-        const time = new Date(props.ACQ_TIME || props.acq_time || props.ACQ_DATE || props.acq_date);
+        const date = new Date(props.ACQ_DATE || props.acq_time);
         const properties = {
             brightness: props.BRIGHTNESS || props.bright_ti4,
-            acq_date: date.toISOString().split('T')[0],
-            acq_time: time.toISOString().split('T')[1].split('.')[0],
+            acq_date: date.toLocaleString(),
             satellite: props.SATELLITE || props.satellite,
             confidence: props.CONFIDENCE || props.confidence,
-            daynight: props.DAYNIGHT || props.daynight,
+            daynight: (props.DAYNIGHT || props.daynight) == 'D' ? 'Day' : 'Night',
             frp: props.FRP || props.frp,
         };
         return turf.point(f.geometry.coordinates, properties);

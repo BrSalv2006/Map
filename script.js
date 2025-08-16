@@ -73,7 +73,7 @@ function createLayersForCountry(countryData) {
     countryData.points.forEach(point => {
         const marker = L.marker([point.geometry.coordinates[1], point.geometry.coordinates[0]]);
         const p = point.properties;
-        const popupContent = `<b>Location:</b> ${p.location}<br><hr style="margin: 4px 0;"><b>Brightness:</b> ${p.brightness} K<br><b>Acquired:</b> ${p.acq_date} ${p.acq_time} UTC<br><b>Satellite:</b> ${p.satellite}<br><b>Confidence:</b> ${p.confidence}<br><b>Day/Night:</b> ${p.daynight}<br><b>FRP:</b> ${p.frp} MW`;
+        const popupContent = `<b>Location:</b> ${p.location}<br><hr style="margin: 4px 0;"><b>Brightness:</b> ${p.brightness} K<br><b>Acquired:</b> ${p.acq_date}<br><b>Satellite:</b> ${p.satellite}<br><b>Confidence:</b> ${p.confidence}<br><b>Day/Night:</b> ${p.daynight}<br><b>FRP:</b> ${p.frp} MW`;
         marker.bindPopup(popupContent);
         hotspots.addLayer(marker);
     });
