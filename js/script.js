@@ -21,6 +21,7 @@ let portugalGeometry;
 let concelhosGeoJSON;
 let currentWorker = null;
 let currentOverlays = {};
+let currentRiskLegend = null;
 
 let fireDataLoaded = false;
 let riskDataLoaded = false;
@@ -55,6 +56,8 @@ function initializeMap() {
     });
 
     noneRiskLayer = L.layerGroup();
+
+    map.on('baselayerchange', onBaseLayerChange);
 }
 
 function resetOverlays() {
@@ -153,6 +156,60 @@ function checkAndAddControl(controlType) {
         console.log('Risk data control added to map.');
     } else {
         console.log(`Control for ${controlType} not added. Conditions not met or already on map. Fire control map status: ${fireDataLayerControl._map !== null}, Risk control map status: ${riskLayerControl._map !== null}`);
+    }
+}
+
+function getColor(d) {
+    let color;
+    switch (d) {
+        case 1:
+            color = '#509e2f';
+            break;
+        case 2:
+            color = '#ffe900';
+            break;
+        case 3:
+            color = '#e87722';
+            break;
+        case 4:
+            color = '#cb333b';
+            break;
+        case 5:
+            color = '#6f263d';
+            break;
+        default:
+            color = 'rgb(255, 255, 255)';
+    }
+    return color;
+}
+
+function addRiskLegend(map) {
+    if (currentRiskLegend) {
+        map.removeControl(currentRiskLegend);
+    }
+
+    const legend = L.control({ position: 'bottomright' });
+    legend.onAdd = function (map) {
+        const div = L.DomUtil.create('div', 'info legend');
+        const grades = [1, 2, 3, 4, 5];
+        const labels = ['Reduzido', 'Moderado', 'Elevado', 'Muito Elevado', 'Máximo'];
+        div.innerHTML += '<h4>Risco de Incêndio</h4>';
+        for (let i = 0; i < grades.length; i++) {
+            div.innerHTML +=
+                '<i style="background:' + getColor(grades[i]) + '" class="' + labels[i] + '"></i> ' + labels[i] + '<br>';
+        }
+        return div;
+    };
+    legend.addTo(map);
+    currentRiskLegend = legend;
+}
+
+function onBaseLayerChange(e) {
+    if (e.name.startsWith('Risco')) {
+        addRiskLegend(map);
+    } else if (currentRiskLegend && e.name == 'Nenhum') {
+        map.removeControl(currentRiskLegend);
+        currentRiskLegend = null;
     }
 }
 
