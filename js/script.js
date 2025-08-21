@@ -17,7 +17,7 @@ let map;
 let baseLayerControl;
 let fireDataLayerControl;
 let riskLayerControl;
-let allCountriesGeoJSON;
+let portugalGeometry;
 let concelhosGeoJSON;
 let currentWorker = null;
 let currentOverlays = {};
@@ -256,19 +256,18 @@ async function setupControls() {
     console.log('Setting up controls...');
     setupWorker();
 
-    let responseCountries = await fetch('countries.json');
-    allCountriesGeoJSON = await responseCountries.json();
-    console.log('countries.json loaded.');
+    let responsePortugal = await fetch('json/portugal.json');
+    portugalGeometry = await responsePortugal.json();
+    console.log('portugal.json loaded.');
 
-    let responseConcelhos = await fetch('concelhos.json');
+    let responseConcelhos = await fetch('json/concelhos.json');
     concelhosGeoJSON = await responseConcelhos.json();
     console.log('concelhos.json loaded.');
 
     currentWorker.postMessage({
         type: 'fireData',
-        selectedCountryNames: ['Portugal'],
-        dayRange: 1,
-        allCountriesGeoJSON: allCountriesGeoJSON
+        geometry: portugalGeometry.geometries[0],
+        dayRange: 1
     });
     console.log('Sent fireData request to worker.');
 

@@ -11,8 +11,10 @@ async function fetchFireData(baseParams, satelliteType) {
     return data && data.features ? data.features : [];
 }
 
-function processFirePoints(fireFeatures, allCountriesGeoJSON) {
-    const firePoints = fireFeatures.map(f => {
+function processFirePoints(fireFeatures, boundaryGeometry) {
+    const finalData = {};
+
+    fireFeatures.forEach(f => {
         const props = f.properties;
         const date = new Date(props.ACQ_DATE || props.acq_time);
         let confidence;
@@ -35,38 +37,31 @@ function processFirePoints(fireFeatures, allCountriesGeoJSON) {
             daynight: (props.DAYNIGHT || props.daynight) == 'D' ? 'Dia' : 'Noite',
             frp: props.FRP || props.frp,
         };
-        return turf.point(f.geometry.coordinates, properties);
-    });
+        const firePoint = turf.point(f.geometry.coordinates, properties);
 
-    const finalData = {};
-    firePoints.forEach(firePoint => {
-        let foundCountry = false;
-        for (const country of allCountriesGeoJSON.features) {
-            if (turf.booleanPointInPolygon(firePoint, country)) {
-                firePoint.properties.country = country.properties.admin;
-                firePoint.properties.continent = country.properties.continent;
-                foundCountry = true;
-                break;
+        let assignedCountry = 'Unknown';
+        let assignedContinent = 'Unknown';
+        let pointInsideBoundary = true;
+        if (boundaryGeometry) {
+            pointInsideBoundary = turf.booleanPointInPolygon(firePoint, boundaryGeometry);
+            if (pointInsideBoundary) {
+                assignedCountry = 'Portugal';
+                assignedContinent = 'Europe';
             }
         }
-        if (!foundCountry) {
-            firePoint.properties.country = 'In Ocean';
-            firePoint.properties.continent = 'Ocean';
-        }
-        firePoint.properties.location = firePoint.properties.country;
 
-        const {
-            continent,
-            country
-        } = firePoint.properties;
-        if (!finalData[continent]) finalData[continent] = {};
-        if (!finalData[continent][country]) {
-            finalData[continent][country] = {
-                points: [],
-                areas: null
-            };
+        if (pointInsideBoundary) {
+            firePoint.properties.country = assignedCountry;
+            firePoint.properties.continent = assignedContinent;
+            firePoint.properties.location = assignedCountry;
+
+            const { continent, country } = firePoint.properties;
+            if (!finalData[continent]) finalData[continent] = {};
+            if (!finalData[continent][country]) {
+                finalData[continent][country] = { points: [], areas: null };
+            }
+            finalData[continent][country].points.push(firePoint);
         }
-        finalData[continent][country].points.push(firePoint);
     });
     return finalData;
 }
@@ -160,9 +155,8 @@ async function fetchRiskData(url) {
 self.onmessage = async function (e) {
     const {
         type,
-        selectedCountryNames,
+        geometry,
         dayRange,
-        allCountriesGeoJSON,
         concelhosGeoJSON
     } = e.data;
 
@@ -170,11 +164,17 @@ self.onmessage = async function (e) {
         if (type === 'fireData') {
             self.postMessage({
                 type: 'progress',
-                message: `Fetching fire data for ${selectedCountryNames.length} countries...`
+                message: `Fetching fire data for specified geometry...`
             });
 
-            const selectedFeatures = allCountriesGeoJSON.features.filter(f => selectedCountryNames.includes(f.properties.admin));
-            const combinedBbox = turf.bbox(turf.featureCollection(selectedFeatures));
+            if (!geometry) {
+                self.postMessage({ type: 'error', message: "No geometry provided for fire data." });
+                return;
+            }
+            const featureGeometry = (geometry.type && geometry.coordinates) ? turf.feature(geometry) : geometry;
+
+            const combinedBbox = turf.bbox(featureGeometry);
+
             const endDate = new Date().getTime();
             const startDate = endDate - (dayRange * 86400000);
 
@@ -204,11 +204,11 @@ self.onmessage = async function (e) {
             const modisFeatures = await fetchFireData(baseParams, 'modis');
             if (modisFeatures.length > 0) {
                 self.postMessage({ type: 'progress', message: 'Processing MODIS data...' });
-                const processedModisData = processFirePoints(modisFeatures, allCountriesGeoJSON);
+                const processedModisData = processFirePoints(modisFeatures, featureGeometry);
                 calculateBurntAreas(processedModisData);
                 resultData.modis = processedModisData;
             } else {
-                self.postMessage({ type: 'progress', message: "No recent MODIS fire data found for the selected country/countries." });
+                self.postMessage({ type: 'progress', message: "No recent MODIS fire data found for the selected area." });
                 resultData.modis = null;
             }
 
@@ -216,18 +216,18 @@ self.onmessage = async function (e) {
             const viirsFeatures = await fetchFireData(baseParams, 'viirs');
             if (viirsFeatures.length > 0) {
                 self.postMessage({ type: 'progress', message: 'Processing VIIRS data...' });
-                const processedViirsData = processFirePoints(viirsFeatures, allCountriesGeoJSON);
+                const processedViirsData = processFirePoints(viirsFeatures, featureGeometry);
                 calculateBurntAreas(processedViirsData);
                 resultData.viirs = processedViirsData;
             } else {
-                self.postMessage({ type: 'progress', message: "No recent VIIRS fire data found for the selected country/countries." });
+                self.postMessage({ type: 'progress', message: "No recent VIIRS fire data found for the selected area." });
                 resultData.viirs = null;
             }
 
             if (!resultData.modis && !resultData.viirs) {
                 self.postMessage({
                     type: 'error',
-                    message: "No recent fire data found for the selected country/countries and satellite(s)."
+                    message: "No recent fire data found for the selected area and satellite(s)."
                 });
             } else {
                 self.postMessage({
@@ -248,7 +248,6 @@ self.onmessage = async function (e) {
             tomorrow.setDate(tomorrow.getDate() + 1);
             let aftertomorrow = new Date(today);
             aftertomorrow.setDate(aftertomorrow.getDate() + 2);
-
 
             self.postMessage({ type: 'progress', message: `Fetching Risco ${today.toLocaleDateString()} data...` });
             const dataToday = await fetchRiskData('https://api-dev.fogos.pt/v1/risk-today');
