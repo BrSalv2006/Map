@@ -231,8 +231,14 @@ self.onmessage = async function (e) {
             }
 
             const riskLayers = {};
+            let today = new Date();
+            let tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            let aftertomorrow = new Date(today);
+            aftertomorrow.setDate(aftertomorrow.getDate() + 2);
 
-            self.postMessage({ type: 'progress', message: 'Fetching "Risco Hoje" data...' });
+
+            self.postMessage({ type: 'progress', message: `Fetching Risco ${today.toLocaleDateString()} data...` });
             const dataToday = await fetchRiskData('https://api-dev.fogos.pt/v1/risk-today');
             if (dataToday.success) {
                 const geoJsonToday = {
@@ -249,12 +255,12 @@ self.onmessage = async function (e) {
                         };
                     })
                 };
-                riskLayers['Risco Hoje'] = geoJsonToday;
+                riskLayers[`Risco ${today.toLocaleDateString()}`] = geoJsonToday;
             } else {
-                console.warn("Failed to load 'Risco Hoje' data:", dataToday.message);
+                console.warn(`Failed to load Risco ${today.toLocaleDateString()} data:`, dataToday.message);
             }
 
-            self.postMessage({ type: 'progress', message: 'Fetching "Risco Amanhã" data...' });
+            self.postMessage({ type: 'progress', message: `Fetching Risco ${tomorrow.toLocaleDateString()} data...` });
             const dataTomorrow = await fetchRiskData('https://api-dev.fogos.pt/v1/risk-tomorrow');
             if (dataTomorrow.success) {
                 const geoJsonTomorrow = {
@@ -271,12 +277,12 @@ self.onmessage = async function (e) {
                         };
                     })
                 };
-                riskLayers['Risco Amanhã'] = geoJsonTomorrow;
+                riskLayers[`Risco ${tomorrow.toLocaleDateString()}`] = geoJsonTomorrow;
             } else {
-                console.warn("Failed to load 'Risco Amanhã' data:", dataTomorrow.message);
+                console.warn(`Failed to load Risco ${tomorrow.toLocaleDateString()} data:`, dataTomorrow.message);
             }
 
-            self.postMessage({ type: 'progress', message: 'Fetching "Risco Depois" data...' });
+            self.postMessage({ type: 'progress', message: `Fetching Risco ${aftertomorrow.toLocaleDateString()} data...` });
             const dataAfter = await fetchRiskData('https://api-dev.fogos.pt/v1/risk-after');
             if (dataAfter.success) {
                 const geoJsonAfter = {
@@ -293,9 +299,9 @@ self.onmessage = async function (e) {
                         };
                     })
                 };
-                riskLayers['Risco Depois'] = geoJsonAfter;
+                riskLayers[`Risco ${aftertomorrow.toLocaleDateString()}`] = geoJsonAfter;
             } else {
-                console.warn("Failed to load 'Risco Depois' data:", dataAfter.message);
+                console.warn(`Failed to load Risco ${aftertomorrow.toLocaleDateString()} data:`, dataAfter.message);
             }
 
             if (Object.keys(riskLayers).length > 0) {
