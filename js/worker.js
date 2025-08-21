@@ -15,12 +15,24 @@ function processFirePoints(fireFeatures, allCountriesGeoJSON) {
     const firePoints = fireFeatures.map(f => {
         const props = f.properties;
         const date = new Date(props.ACQ_DATE || props.acq_time);
+        let confidence;
+
+        if (props.confidence === 'nominal') {
+            confidence = 'Normal';
+        } else if (props.confidence === 'low') {
+            confidence = 'Baixa';
+        } else if (props.confidence === 'high') {
+            confidence = 'Alta';
+        } else {
+            confidence = props.confidence;
+        };
+
         const properties = {
             brightness: props.BRIGHTNESS || props.bright_ti4,
             acq_date: date.toLocaleString(),
             satellite: props.SATELLITE || props.satellite,
-            confidence: props.CONFIDENCE || props.confidence,
-            daynight: (props.DAYNIGHT || props.daynight) == 'D' ? 'Day' : 'Night',
+            confidence: props.CONFIDENCE || confidence,
+            daynight: (props.DAYNIGHT || props.daynight) == 'D' ? 'Dia' : 'Noite',
             frp: props.FRP || props.frp,
         };
         return turf.point(f.geometry.coordinates, properties);
