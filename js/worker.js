@@ -1,27 +1,14 @@
 importScripts('https://unpkg.com/@turf/turf@6.5.0/turf.min.js');
 
-async function fetchFireData(baseParams, selectedSatellite) {
+async function fetchFireData(baseParams, satelliteType) {
     const apiEndpoints = {
         modis: 'https://services9.arcgis.com/RHVPKKiFTONKtxq3/ArcGIS/rest/services/MODIS_Thermal_v1/FeatureServer/0/query',
         viirs: 'https://services9.arcgis.com/RHVPKKiFTONKtxq3/arcgis/rest/services/Satellite_VIIRS_Thermal_Hotspots_and_Fire_Activity/FeatureServer/0/query'
     };
 
-    const fetchPromises = [];
-    if (selectedSatellite === 'modis' || selectedSatellite === 'both') {
-        fetchPromises.push(fetch(`${apiEndpoints.modis}?${new URLSearchParams(baseParams)}`).then(res => res.json()));
-    }
-    if (selectedSatellite === 'viirs' || selectedSatellite === 'both') {
-        fetchPromises.push(fetch(`${apiEndpoints.viirs}?${new URLSearchParams(baseParams)}`).then(res => res.json()));
-    }
-
-    const fireDataResponses = await Promise.all(fetchPromises);
-    let fireFeatures = [];
-    fireDataResponses.forEach(response => {
-        if (response && response.features) {
-            fireFeatures = fireFeatures.concat(response.features);
-        }
-    });
-    return fireFeatures;
+    const response = await fetch(`${apiEndpoints[satelliteType]}?${new URLSearchParams(baseParams)}`);
+    const data = await response.json();
+    return data && data.features ? data.features : [];
 }
 
 function processFirePoints(fireFeatures, allCountriesGeoJSON) {
@@ -125,7 +112,6 @@ self.onmessage = async function (e) {
     const {
         selectedCountryNames,
         dayRange,
-        selectedSatellite,
         allCountriesGeoJSON
     } = e.data;
 
@@ -160,8 +146,33 @@ self.onmessage = async function (e) {
             f: 'geojson'
         };
 
-        const fireFeatures = await fetchFireData(baseParams, selectedSatellite);
-        if (fireFeatures.length === 0) {
+        const resultData = {};
+
+        self.postMessage({ type: 'progress', message: 'Fetching MODIS fire data...' });
+        const modisFeatures = await fetchFireData(baseParams, 'modis');
+        if (modisFeatures.length > 0) {
+            self.postMessage({ type: 'progress', message: 'Processing MODIS data...' });
+            const processedModisData = processFirePoints(modisFeatures, allCountriesGeoJSON);
+            calculateBurntAreas(processedModisData);
+            resultData.modis = processedModisData;
+        } else {
+            self.postMessage({ type: 'error', message: "No recent MODIS fire data found for the selected country/countries." });
+            return;
+        }
+
+        self.postMessage({ type: 'progress', message: 'Fetching VIIRS fire data...' });
+        const viirsFeatures = await fetchFireData(baseParams, 'viirs');
+        if (viirsFeatures.length > 0) {
+            self.postMessage({ type: 'progress', message: 'Processing VIIRS data...' });
+            const processedViirsData = processFirePoints(viirsFeatures, allCountriesGeoJSON);
+            calculateBurntAreas(processedViirsData);
+            resultData.viirs = processedViirsData;
+        } else {
+            self.postMessage({ type: 'error', message: "No recent VIIRS fire data found for the selected country/countries." });
+            return;
+        }
+
+        if (Object.keys(resultData).length === 0) {
             self.postMessage({
                 type: 'error',
                 message: "No recent fire data found for the selected country/countries and satellite(s)."
@@ -170,20 +181,8 @@ self.onmessage = async function (e) {
         }
 
         self.postMessage({
-            type: 'progress',
-            message: 'Processing and enriching fire data...'
-        });
-        const finalData = processFirePoints(fireFeatures, allCountriesGeoJSON);
-
-        self.postMessage({
-            type: 'progress',
-            message: 'Calculating burnt areas...'
-        });
-        calculateBurntAreas(finalData);
-
-        self.postMessage({
             type: 'result',
-            data: finalData
+            data: resultData
         });
 
     } catch (err) {

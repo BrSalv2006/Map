@@ -10,30 +10,22 @@ const MAP_CONFIG = {
 };
 
 const BASE_LAYERS = {
-    label: 'Base Layers',
-    children: [{
-        label: 'OpenStreetMap',
-        layer: MAP_CONFIG.layers[0]
-    }, {
-        label: 'OpenStreetMap HOT',
-        layer: L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '© OpenStreetMap contributors, Tiles style by Humanitarian OpenStreetMap Team hosted by OpenStreetMap France'
-        })
-    }, {
-        label: 'OpenTopoMap',
-        layer: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: 'Map data: © OpenStreetMap contributors, SRTM | Map style: © OpenTopoMap (CC-BY-SA)'
-        })
-    }]
+    "OpenStreetMap": MAP_CONFIG.layers[0],
+    "OpenStreetMap HOT": L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap contributors, Tiles style by Humanitarian OpenStreetMap Team hosted by OpenStreetMap France'
+    }),
+    "OpenTopoMap": L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: 'Map data: © OpenStreetMap contributors, SRTM | Map style: © OpenTopoMap (CC-BY-SA)'
+    })
 };
 
 let map;
-let treeControl;
+let layerControl;
 let allCountriesGeoJSON;
 let currentWorker = null;
-let currentOverlayTree = null;
+let currentOverlays = {}; // To store current MODIS and VIIRS layers
 
 function initializeMap() {
     map = L.map('map', MAP_CONFIG);
@@ -43,61 +35,55 @@ function initializeMap() {
             enableHighAccuracy: true
         }
     }).addTo(map);
-    treeControl = L.control.layers.tree(BASE_LAYERS, null, {
-        collapsed: false
-    });
-    treeControl.addTo(map);
+    layerControl = L.control.layers(BASE_LAYERS, null).addTo(map);
 }
 
 function resetOverlays() {
-    if (currentOverlayTree && currentOverlayTree.children) {
-        currentOverlayTree.children.forEach(continent => {
-            if (continent.children) {
-                continent.children.forEach(country => {
-                    if (map.hasLayer(country.layer)) {
-                        map.removeLayer(country.layer);
-                    }
-                });
-            }
-        });
+    for (const key in currentOverlays) {
+        if (map.hasLayer(currentOverlays[key])) {
+            map.removeLayer(currentOverlays[key]);
+        }
+        layerControl.removeLayer(currentOverlays[key]);
     }
-    currentOverlayTree = null;
+    currentOverlays = {};
 }
 
-function createLayersForCountry(countryData) {
+function createFireLayers(fireData) {
     const hotspots = L.markerClusterGroup({
         maxClusterRadius: 40
     });
     const areas = L.featureGroup();
 
-    countryData.points.forEach(point => {
-        const marker = L.marker([point.geometry.coordinates[1], point.geometry.coordinates[0]]);
-        const p = point.properties;
-        const popupContent = `<b>Location:</b> ${p.location}<br><hr style="margin: 4px 0;"><b>Brightness:</b> ${p.brightness} K<br><b>Acquired:</b> ${p.acq_date}<br><b>Satellite:</b> ${p.satellite}<br><b>Confidence:</b> ${p.confidence}<br><b>Day/Night:</b> ${p.daynight}<br><b>FRP:</b> ${p.frp} MW`;
-        marker.bindPopup(popupContent);
-        hotspots.addLayer(marker);
-    });
+    for (const continent in fireData) {
+        for (const country in fireData[continent]) {
+            const countryData = fireData[continent][country];
+            countryData.points.forEach(point => {
+                const marker = L.marker([point.geometry.coordinates[1], point.geometry.coordinates[0]]);
+                const p = point.properties;
+                const popupContent = `<b>Location:</b> ${p.location}<br><hr style="margin: 4px 0;"><b>Brightness:</b> ${p.brightness} K<br><b>Acquired:</b> ${p.acq_date}<br><b>Satellite:</b> ${p.satellite}<br><b>Confidence:</b> ${p.confidence}<br><b>Day/Night:</b> ${p.daynight}<br><b>FRP:</b> ${p.frp} MW`;
+                marker.bindPopup(popupContent);
+                hotspots.addLayer(marker);
+            });
 
-    if (countryData.areas && countryData.areas.features.length > 0) {
-        const areaLayer = L.geoJSON(countryData.areas, {
-            style: {
-                color: "#ff0000",
-                weight: 2,
-                opacity: 0.8,
-                fillColor: "#ff0000",
-                fillOpacity: 0.2
-            },
-            onEachFeature: (feature, layer) => {
-                const area_sq_km = turf.area(feature) / 1000000;
-                layer.bindPopup(`Burnt Area: ${Math.round(area_sq_km)} KM²`);
+            if (countryData.areas && countryData.areas.features.length > 0) {
+                const areaLayer = L.geoJSON(countryData.areas, {
+                    style: {
+                        color: "#ff0000",
+                        weight: 2,
+                        opacity: 0.8,
+                        fillColor: "#ff0000",
+                        fillOpacity: 0.2
+                    },
+                    onEachFeature: (feature, layer) => {
+                        const area_sq_km = turf.area(feature) / 1000000;
+                        layer.bindPopup(`Burnt Area: ${Math.round(area_sq_km)} KM²`);
+                    }
+                });
+                areas.addLayer(areaLayer);
             }
-        });
-        areas.addLayer(areaLayer);
+        }
     }
-    return {
-        hotspots,
-        areas
-    };
+    return { hotspots, areas };
 }
 
 function populateMap(data) {
@@ -105,43 +91,26 @@ function populateMap(data) {
     loader.innerText = 'Generating map layers...';
     resetOverlays();
 
-    const newOverlayTree = {
-        label: 'Fires by Region',
-        selectAllCheckbox: 'All Fires',
-        children: [],
-        collapsed: true
-    };
-    const allLeafLayers = [];
+    const allFeaturesLayers = [];
 
-    for (const continent of Object.keys(data).sort()) {
-        const countryLayersForTree = [];
-        for (const country of Object.keys(data[continent]).sort()) {
-            const countryData = data[continent][country];
-            const {
-                hotspots,
-                areas
-            } = createLayersForCountry(countryData);
-            const combinedLayer = L.layerGroup([hotspots, areas]);
+    if (data.modis) {
+        const { hotspots, areas } = createFireLayers(data.modis);
+        const modisCombinedLayer = L.layerGroup([hotspots, areas]);
+        layerControl.addOverlay(modisCombinedLayer, 'MODIS Fires');
+        currentOverlays.modis = modisCombinedLayer;
+        allFeaturesLayers.push(hotspots, areas);
+    } 
 
-            countryLayersForTree.push({
-                label: `${country} (${countryData.points.length})`,
-                layer: combinedLayer
-            });
-            allLeafLayers.push(hotspots, areas);
-        }
-        newOverlayTree.children.push({
-            label: continent,
-            selectAllCheckbox: true,
-            children: countryLayersForTree,
-            collapsed: true
-        });
+    if (data.viirs) {
+        const { hotspots, areas } = createFireLayers(data.viirs);
+        const viirsCombinedLayer = L.layerGroup([hotspots, areas]);
+        layerControl.addOverlay(viirsCombinedLayer, 'VIIRS Fires');
+        currentOverlays.viirs = viirsCombinedLayer;
+        allFeaturesLayers.push(hotspots, areas);
     }
 
-    treeControl.setOverlayTree(newOverlayTree);
-    currentOverlayTree = newOverlayTree;
-
-    if (allLeafLayers.length > 0) {
-        const allFeatures = L.featureGroup(allLeafLayers);
+    if (allFeaturesLayers.length > 0) {
+        const allFeatures = L.featureGroup(allFeaturesLayers);
         if (allFeatures.getLayers().length > 0) {
             map.fitBounds(allFeatures.getBounds().pad(0.1));
         }
@@ -196,7 +165,6 @@ async function setupControls() {
     startWorker({
         selectedCountryNames: ['Portugal'],
         dayRange: 1,
-        selectedSatellite: 'both',
         allCountriesGeoJSON
     });
 }
