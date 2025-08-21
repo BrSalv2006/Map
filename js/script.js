@@ -24,6 +24,7 @@ let currentOverlays = {};
 
 let fireDataLoaded = false;
 let riskDataLoaded = false;
+let noneRiskLayer;
 
 function initializeMap() {
     map = L.map('map', {
@@ -48,10 +49,12 @@ function initializeMap() {
         position: 'topright'
     });
 
-    riskLayerControl = L.control.layers(null, {}, {
+    riskLayerControl = L.control.layers(null, null, {
         collapsed: false,
         position: 'topright'
     });
+
+    noneRiskLayer = L.layerGroup();
 }
 
 function resetOverlays() {
@@ -180,10 +183,9 @@ function setupWorker() {
                 riskLayerControl.remove();
                 console.log('Removed existing risk layer control.');
             }
-            riskLayerControl = L.control.layers(null, {}, { collapsed: false, position: 'topright' });
-            console.log('Re-initialized riskLayerControl. _map is now:', riskLayerControl._map);
-
-
+            const riskBaseLayers = {
+                "Nenhum": noneRiskLayer
+            };
             for (const key in data) {
                 const geoJsonData = data[key];
                 const riskLayer = L.geoJson(geoJsonData, {
@@ -196,8 +198,22 @@ function setupWorker() {
                         };
                     }
                 });
-                riskLayerControl.addOverlay(riskLayer, key);
-                console.log(`Added ${key} to riskLayerControl.`);
+                riskBaseLayers[key] = riskLayer;
+                console.log(`Added ${key} to riskBaseLayers.`);
+            }
+
+            riskLayerControl = L.control.layers(riskBaseLayers, null, { collapsed: false, position: 'topright' });
+            console.log('Re-initialized riskLayerControl. _map is now:', riskLayerControl._map);
+
+            noneRiskLayer.addTo(map);
+            console.log('Defaulting to "Nenhum" risk layer.');
+
+            if (getParameterByName('risk') && riskBaseLayers['Risco Hoje']) {
+                riskBaseLayers['Risco Hoje'].addTo(map);
+                console.log('URL parameter for "Risco Hoje" detected, activating it.');
+            } else if (getParameterByName('risk-tomorrow') && riskBaseLayers['Risco Amanhã']) {
+                riskBaseLayers['Risco Amanhã'].addTo(map);
+                console.log('URL parameter for "Risco Amanhã" detected, activating it.');
             }
             riskDataLoaded = true;
             console.log('Risk data loaded:', riskDataLoaded);
