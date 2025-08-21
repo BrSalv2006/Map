@@ -1,6 +1,6 @@
 const MAP_CONFIG = {
-    center: [0, 0],
-    zoom: 2,
+    center: [39.557191, -7.8536599],
+    zoom: 7,
     layers: [
         L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
@@ -24,8 +24,12 @@ const BASE_LAYERS = {
 let map;
 let layerControl;
 let allCountriesGeoJSON;
+let concelhosGeoJSON;
 let currentWorker = null;
-let currentOverlays = {}; // To store current MODIS and VIIRS layers
+let currentOverlays = {};
+
+let fireDataLoaded = false;
+let riskDataLoaded = false;
 
 function initializeMap() {
     map = L.map('map', MAP_CONFIG);
@@ -35,7 +39,10 @@ function initializeMap() {
             enableHighAccuracy: true
         }
     }).addTo(map);
-    layerControl = L.control.layers(BASE_LAYERS, null).addTo(map);
+
+    layerControl = L.control.layers(BASE_LAYERS, null, {
+        collapsed: false
+    }).addTo(map);
 }
 
 function resetOverlays() {
@@ -96,35 +103,37 @@ function populateMap(data) {
     if (data.modis) {
         const { hotspots, areas } = createFireLayers(data.modis);
         const modisCombinedLayer = L.layerGroup([hotspots, areas]);
-        layerControl.addOverlay(modisCombinedLayer, 'MODIS Fires');
+        layerControl.addOverlay(modisCombinedLayer, 'MODIS');
         currentOverlays.modis = modisCombinedLayer;
         allFeaturesLayers.push(hotspots, areas);
-    } 
+    }
 
     if (data.viirs) {
         const { hotspots, areas } = createFireLayers(data.viirs);
         const viirsCombinedLayer = L.layerGroup([hotspots, areas]);
-        layerControl.addOverlay(viirsCombinedLayer, 'VIIRS Fires');
+        layerControl.addOverlay(viirsCombinedLayer, 'VIIRS');
         currentOverlays.viirs = viirsCombinedLayer;
         allFeaturesLayers.push(hotspots, areas);
     }
 
-    if (allFeaturesLayers.length > 0) {
-        const allFeatures = L.featureGroup(allFeaturesLayers);
-        if (allFeatures.getLayers().length > 0) {
-            map.fitBounds(allFeatures.getBounds().pad(0.1));
-        }
-    }
-    loader.style.display = 'none';
+    fireDataLoaded = true;
+    checkAllLoaded();
 }
 
-function startWorker(params) {
-    if (currentWorker) {
-        currentWorker.terminate();
+function checkAllLoaded() {
+    if (fireDataLoaded && riskDataLoaded) {
+        document.getElementById('loader').style.display = 'none';
     }
+}
+
+function setupWorker() {
+    if (currentWorker) {
+        return;
+    }
+
     const loader = document.getElementById('loader');
     loader.style.display = 'block';
-    loader.innerText = 'Starting data processing...';
+    loader.innerText = 'Initializing data processing...';
     currentWorker = new Worker('js/worker.js');
 
     currentWorker.onmessage = (e) => {
@@ -137,39 +146,89 @@ function startWorker(params) {
             loader.innerText = message;
         } else if (type === 'result') {
             populateMap(data);
-            currentWorker.terminate();
-            currentWorker = null;
+        } else if (type === 'riskResult') {
+            loader.innerText = 'Adding risk layers...';
+            const riskLayers = {};
+            for (const key in data) {
+                const geoJsonData = data[key];
+                const riskLayer = L.geoJson(geoJsonData, {
+                    style: function (feature) {
+                        return {
+                            weight: 1.0,
+                            color: '#666',
+                            fillOpacity: 0.6,
+                            fillColor: feature.properties.fillColor
+                        };
+                    }
+                });
+                riskLayers[key] = riskLayer;
+                layerControl.addOverlay(riskLayer, key);
+            }
+            riskDataLoaded = true;
+            checkAllLoaded();
         } else if (type === 'error') {
-            alert(message);
-            loader.style.display = 'none';
-            currentWorker.terminate();
-            currentWorker = null;
+            const errorMessage = document.createElement('div');
+            errorMessage.className = 'error-message';
+            errorMessage.textContent = message;
+            document.body.appendChild(errorMessage);
+            setTimeout(() => errorMessage.remove(), 5000);
+
+            if (message.includes("fire data")) {
+                fireDataLoaded = true;
+            } else if (message.includes("risk layers")) {
+                riskDataLoaded = true;
+            }
+            checkAllLoaded();
         }
     };
 
     currentWorker.onerror = (e) => {
         console.error('Error in worker:', e);
         loader.innerText = 'An error occurred during processing.';
-        alert('A critical error occurred in the worker. Check the console for details.');
-        currentWorker.terminate();
-        currentWorker = null;
+        const errorMessage = document.createElement('div');
+        errorMessage.className = 'error-message';
+        errorMessage.textContent = 'A critical error occurred in the worker. Check the console for details.';
+        document.body.appendChild(errorMessage);
+        setTimeout(() => errorMessage.remove(), 5000);
+        fireDataLoaded = true;
+        riskDataLoaded = true;
+        checkAllLoaded();
     };
-
-    currentWorker.postMessage(params);
 }
 
 async function setupControls() {
-    let response = await fetch('countries.json');
-    allCountriesGeoJSON = await response.json();
+    setupWorker();
 
-    startWorker({
+    let responseCountries = await fetch('countries.json');
+    allCountriesGeoJSON = await responseCountries.json();
+
+    let responseConcelhos = await fetch('concelhos.json');
+    concelhosGeoJSON = await responseConcelhos.json();
+
+    currentWorker.postMessage({
+        type: 'fireData',
         selectedCountryNames: ['Portugal'],
         dayRange: 1,
-        allCountriesGeoJSON
+        allCountriesGeoJSON: allCountriesGeoJSON
+    });
+
+    currentWorker.postMessage({
+        type: 'riskData',
+        concelhosGeoJSON: concelhosGeoJSON
     });
 }
 
-window.onload = () => {
+function getParameterByName(name, url) {
+    if (!url) url = window.location.href;
+    name = name.replace(/[\[\]]/g, '\\$&');
+    const regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)');
+    const results = regex.exec(url);
+    if (!results) return null;
+    if (!results[2]) return '';
+    return decodeURIComponent(results[2].replace(/\+/g, ' '));
+}
+
+window.onload = async () => {
     initializeMap();
-    setupControls();
+    await setupControls();
 };
