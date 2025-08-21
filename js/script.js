@@ -44,7 +44,7 @@ function initializeMap() {
         }
     }).addTo(map);
     treeControl = L.control.layers.tree(BASE_LAYERS, null, {
-        collapsed: true
+        collapsed: false
     });
     treeControl.addTo(map);
 }
@@ -156,7 +156,7 @@ function startWorker(params) {
     const loader = document.getElementById('loader');
     loader.style.display = 'block';
     loader.innerText = 'Starting data processing...';
-    currentWorker = new Worker('worker.js');
+    currentWorker = new Worker('js/worker.js');
 
     currentWorker.onmessage = (e) => {
         const {
@@ -190,60 +190,14 @@ function startWorker(params) {
 }
 
 async function setupControls() {
-    const countrySelector = document.getElementById('country-selector');
-    const dayRangeSelector = document.getElementById('day-range-selector');
-    const satelliteSelector = document.getElementById('satellite-selector');
-    const loadBtn = document.getElementById('load-data-btn');
-    const loader = document.getElementById('loader');
+    let response = await fetch('countries.json');
+    allCountriesGeoJSON = await response.json();
 
-    dayRangeSelector.addEventListener('input', () => {
-        if (parseInt(dayRangeSelector.value) > 10) dayRangeSelector.value = 10;
-    });
-    dayRangeSelector.addEventListener('blur', () => {
-        if (dayRangeSelector.value === '' || parseInt(dayRangeSelector.value) < 1) dayRangeSelector.value = 1;
-    });
-
-    try {
-        loader.style.display = 'block';
-        loader.innerText = 'Loading initial data...';
-
-        let response = await fetch('countries.json');
-        if (!response.ok) {
-            throw new Error('Failed to load countries data');
-        } else {
-            allCountriesGeoJSON = await response.json();
-        }
-
-        const countries = allCountriesGeoJSON.features
-            .map(f => f.properties.admin)
-            .filter(name => name && name !== "-99")
-            .sort((a, b) => a.localeCompare(b));
-
-        countries.forEach(country => {
-            const option = document.createElement('option');
-            option.value = country;
-            option.textContent = country;
-            countrySelector.appendChild(option);
-        });
-
-        loader.style.display = 'none';
-    } catch (error) {
-        console.error("Failed to load initial data:", error);
-        loader.innerText = 'Could not load initial data.';
-    }
-
-    loadBtn.addEventListener('click', () => {
-        const selectedCountryNames = Array.from(countrySelector.selectedOptions).map(opt => opt.value);
-        if (selectedCountryNames.length === 0) {
-            alert('Please select at least one country.');
-            return;
-        }
-        startWorker({
-            selectedCountryNames,
-            dayRange: dayRangeSelector.value,
-            selectedSatellite: satelliteSelector.value,
-            allCountriesGeoJSON
-        });
+    startWorker({
+        selectedCountryNames: ['Portugal'],
+        dayRange: 1,
+        selectedSatellite: 'both',
+        allCountriesGeoJSON
     });
 }
 

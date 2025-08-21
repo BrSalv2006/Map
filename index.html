@@ -9,39 +9,17 @@
         <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css" />
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol/dist/L.Control.Locate.min.css" />
         <link rel="stylesheet" href="https://unpkg.com/leaflet.control.layers.tree/L.Control.Layers.Tree.css" />
-        <link rel="stylesheet" href="style.css">
+        <link rel="stylesheet" href="css/style.css">
     </head>
     <body>
-        <main>
-            <div id="map"></div>
-            <div id="loader" class="loader" style="display: none;">Loading...</div>
-        </main>
-        <aside id="controls" class="controls-panel">
-            <h1>Active Fire Controls</h1>
-            <div class="control-group">
-                <label for="country-selector">Select Country/Countries:</label>
-                <select id="country-selector" multiple size="8"></select>
-            </div>
-            <div class="control-group">
-                <label for="day-range-selector">Day Range (1-10):</label>
-                <input type="number" id="day-range-selector" value="1" min="1" max="10">
-            </div>
-            <div class="control-group">
-                <label for="satellite-selector">Satellite:</label>
-                <select id="satellite-selector">
-                    <option value="both" selected>Both (MODIS & VIIRS)</option>
-                    <option value="modis">MODIS</option>
-                    <option value="viirs">VIIRS</option>
-                </select>
-            </div>
-            <button id="load-data-btn">Load Fire Data</button>
-        </aside>
+        <div id="map"></div>
+        <div id="loader" class="loader" style="display: none;">Loading...</div>
         <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
         <script src="https://unpkg.com/shpjs/dist/shp.js"></script>
         <script src="https://unpkg.com/@turf/turf/turf.min.js"></script>
         <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol/dist/L.Control.Locate.min.js"></script>
         <script src="https://unpkg.com/leaflet.control.layers.tree/L.Control.Layers.Tree.js"></script>
-        <script src="script.js"></script>
+        <script src="js/script.js"></script>
     </body>
 </html>
