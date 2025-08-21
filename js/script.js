@@ -1,15 +1,56 @@
 const BASE_LAYERS = {
-    "OpenStreetMap": L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '© OpenStreetMap'
+    "Street": L.tileLayer('https://api.maptiler.com/maps/streets-v2/256/{z}/{x}/{y}@2x.png?key=M5oddZtB9rr0EdbaCglK', {
+        minZoom: 2,
+        maxZoom: 22
     }),
-    "OpenStreetMap HOT": L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '© OpenStreetMap contributors, Tiles style by Humanitarian OpenStreetMap Team hosted by OpenStreetMap France'
+    "Street Dark": L.tileLayer('https://api.maptiler.com/maps/streets-v2-dark/256/{z}/{x}/{y}@2x.png?key=M5oddZtB9rr0EdbaCglK', {
+        minZoom: 2,
+        maxZoom: 22
     }),
-    "OpenTopoMap": L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: 'Map data: © OpenStreetMap contributors, SRTM | Map style: © OpenTopoMap (CC-BY-SA)'
+    "Street Light": L.tileLayer('https://api.maptiler.com/maps/streets-v2-light/256/{z}/{x}/{y}@2x.png?key=M5oddZtB9rr0EdbaCglK', {
+        minZoom: 2,
+        maxZoom: 22
+    }),
+    "Street Pastel": L.tileLayer('https://api.maptiler.com/maps/streets-v2-pastel/256/{z}/{x}/{y}@2x.png?key=M5oddZtB9rr0EdbaCglK', {
+        minZoom: 2,
+        maxZoom: 22
+    }),
+    "Hybrid": L.tileLayer('https://api.maptiler.com/maps/hybrid/256/{z}/{x}/{y}@2x.png?key=M5oddZtB9rr0EdbaCglK', {
+        minZoom: 2,
+        maxZoom: 22
+    }),
+    "Satellite": L.tileLayer('https://api.maptiler.com/tiles/satellite-v2/{z}/{x}/{y}.png?key=M5oddZtB9rr0EdbaCglK', {
+        minZoom: 2,
+        maxZoom: 22,
+    }),
+    "Basic": L.tileLayer('https://api.maptiler.com/maps/basic-v2/256/{z}/{x}/{y}@2x.png?key=M5oddZtB9rr0EdbaCglK', {
+        minZoom: 2,
+        maxZoom: 22
+    }),
+    "Basic Dark": L.tileLayer('https://api.maptiler.com/maps/basic-v2-dark/256/{z}/{x}/{y}@2x.png?key=M5oddZtB9rr0EdbaCglK', {
+        minZoom: 2,
+        maxZoom: 22
+    }),
+    "Basic Light": L.tileLayer('https://api.maptiler.com/maps/basic-v2-light/256/{z}/{x}/{y}@2x.png?key=M5oddZtB9rr0EdbaCglK', {
+        minZoom: 2,
+        maxZoom: 22
+    }),
+    "Outdoor": L.tileLayer('https://api.maptiler.com/maps/outdoor-v2/256/{z}/{x}/{y}@2x.png?key=M5oddZtB9rr0EdbaCglK', {
+        minZoom: 2,
+        maxZoom: 22
+    }),
+    "Outdoor Dark": L.tileLayer('https://api.maptiler.com/maps/outdoor-v2-dark/256/{z}/{x}/{y}@2x.png?key=M5oddZtB9rr0EdbaCglK', {
+        minZoom: 2,
+        maxZoom: 22
+    }),
+    "Topo": L.tileLayer('https://api.maptiler.com/maps/topo-v2/256/{z}/{x}/{y}@2x.png?key=M5oddZtB9rr0EdbaCglK', {
+        minZoom: 2,
+        maxZoom: 22
+    }),
+    "Real-Time": L.esri.tiledMapLayer({
+        url: "https://gis.nnvl.noaa.gov/arcgis/rest/services/TRUE/TRUE_current/ImageServer",
+        minZoom: 2,
+        maxZoom: 8
     })
 };
 
@@ -31,7 +72,7 @@ function initializeMap() {
     map = L.map('map', {
         center: [39.557191, -7.8536599],
         zoom: 7,
-        layers: BASE_LAYERS['OpenStreetMap']
+        layers: BASE_LAYERS['Street']
     });
     L.control.locate({
         flyTo: true,
@@ -58,6 +99,10 @@ function initializeMap() {
     noneRiskLayer = L.layerGroup();
 
     map.on('baselayerchange', onBaseLayerChange);
+    map.setMaxBounds([
+        [-90, -180],
+        [90, 180]
+    ]);
 }
 
 function resetOverlays() {
