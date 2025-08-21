@@ -203,18 +203,8 @@ function setupWorker() {
             }
 
             riskLayerControl = L.control.layers(riskBaseLayers, null, { collapsed: false, position: 'topright' });
-            console.log('Re-initialized riskLayerControl. _map is now:', riskLayerControl._map);
 
             noneRiskLayer.addTo(map);
-            console.log('Defaulting to "Nenhum" risk layer.');
-
-            if (getParameterByName('risk') && riskBaseLayers['Risco Hoje']) {
-                riskBaseLayers['Risco Hoje'].addTo(map);
-                console.log('URL parameter for "Risco Hoje" detected, activating it.');
-            } else if (getParameterByName('risk-tomorrow') && riskBaseLayers['Risco Amanhã']) {
-                riskBaseLayers['Risco Amanhã'].addTo(map);
-                console.log('URL parameter for "Risco Amanhã" detected, activating it.');
-            }
             riskDataLoaded = true;
             console.log('Risk data loaded:', riskDataLoaded);
             checkAndAddControl('riskData');
