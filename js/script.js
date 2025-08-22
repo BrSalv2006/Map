@@ -306,7 +306,7 @@ function onBaseLayerChange(e) {
 
     const weatherLayerKey = weatherLayerMapping[selectedLayerName];
 
-    if ((isWeatherLayerOption || selectedLayerName === "Nenhum ") && currentWeatherLegend) {
+    if ((weatherLayerKey || selectedLayerName === "Nenhum ") && currentWeatherLegend) {
         map.removeControl(currentWeatherLegend);
         currentWeatherLegend = null;
     }
