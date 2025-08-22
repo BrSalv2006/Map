@@ -17,7 +17,7 @@ function processFirePoints(fireFeatures, boundaryGeometry) {
     fireFeatures.forEach(f => {
         const props = f.properties;
         const date = new Date(props.ACQ_DATE || props.acq_time);
-        
+
         let confidence;
         if (props.confidence === 'nominal') {
             confidence = 'Normal';
@@ -251,7 +251,7 @@ self.onmessage = async function (e) {
 
             const riskLayers = {};
             let date;
-            
+
             self.postMessage({ type: 'progress', message: 'Fetching Risco data...' });
             const dataToday = await fetchRiskData('https://api-dev.fogos.pt/v1/risk-today');
             if (dataToday.success) {

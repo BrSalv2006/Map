@@ -65,6 +65,7 @@ let currentWorker = null;
 let currentOverlays = {};
 let currentRiskLegend = null;
 let currentWeatherLegend = null;
+let weatherLegendsData = {};
 
 let fireDataLoaded = false;
 let riskDataLoaded = false;
@@ -108,11 +109,6 @@ function initializeMap() {
     noneWeatherLayer = L.layerGroup();
 
     map.on('baselayerchange', onBaseLayerChange);
-
-    map.setMaxBounds([
-        [-90, -180],
-        [90, 180]
-    ]);
 }
 
 function resetOverlays() {
@@ -268,222 +264,63 @@ function generateWeatherLegend(title, stops, unit) {
         for (let i = 0; i < stops.length; i++) {
             const stop = stops[i];
             const nextStop = stops[i + 1];
-            if (stop.color.includes('rgba') && nextStop && nextStop.color.includes('rgba')) {
-                const gradientStyle = `background: linear-gradient(to right, ${stop.color}, ${nextStop.color});`;
-                div.innerHTML +=
-                    `<div style="${gradientStyle} width: 100%; height: 18px; line-height: 18px; text-align: center; color: white; font-size: 0.8em;">${stop.value} ${unit} - ${nextStop.value} ${unit}</div>`;
-            } else if (stop.color.includes('rgba') && !nextStop) {
-                div.innerHTML +=
-                    `<div style="background:${stop.color}; width: 100%; height: 18px; line-height: 18px; text-align: center; color: white; font-size: 0.8em;">${stop.value} ${unit}+</div>`;
+            let label = `${stop.value} ${unit}`;
+            if (nextStop) {
+                label += ` - ${nextStop.value} ${unit}`;
+            } else {
+                label += '+';
             }
-            else {
-                div.innerHTML +=
-                    `<i style="background:${stop.color}; width: 18px; height: 18px; float: left; margin-right: 8px;"></i> ${stop.value} ${unit} ${nextStop ? `- ${nextStop.value} ${unit}` : '+'}<br>`;
-            }
+            div.innerHTML +=
+                `<i style="background:${stop.color}"></i> ${label}<br>`;
         }
         return div;
     };
     return legend;
 }
 
-function parseStops(stopString) {
-    const cleanedStopString = stopString.substring(0, stopString.lastIndexOf('}') + 1);
-    const regex = /stop\(([^,]+),\s*(rgba\([^)]+\)|#[0-9a-fA-F]{6}|transparent)\)/g;
-    let match;
-    const stops = [];
-
-    while ((match = regex.exec(cleanedStopString)) !== null) {
-        const value = parseFloat(match[1].trim());
-        const color = match[2].trim();
-        stops.push({ value, color });
-    }
-    return stops;
-}
-
-
 function onBaseLayerChange(e) {
+    map.setMaxBounds([
+        [-90, -180],
+        [90, 180]
+    ]);
     const selectedLayerName = e.name;
     const isRiskLayer = selectedLayerName.startsWith('Risco');
-    const isWeatherLayerOption = [
-        'Temperatura', 'Pressão', 'Vento', 'Precipitação', 'Nuvens', 'Neve',
-        'Precipitação Convectiva', 'Intensidade Precipitação', 'Precipitação Acumulada',
-        'Precipitação Acumulada - Chuva', 'Precipitação Acumulada - Neve', 'Profundidade Neve',
-        'Velocidade Vento (10m)', 'Vento (Velocidade & Direção)', 'Pressão Atmosférica',
-        'Temperatura do Ar (2m)', 'Temperatura do Ponto de Orvalho', 'Temperatura do Solo (0-10cm)',
-        'Temperatura do Solo (>10cm)', 'Humidade Relativa', 'Nebulosidade'
-    ].includes(selectedLayerName);
 
-    if ((isWeatherLayerOption || selectedLayerName == "Nenhum ") && currentWeatherLegend) {
+    const weatherLayerMapping = {
+        'Temperatura do Ar (2m)': 'TA2',
+        'Temperatura do Ponto de Orvalho': 'TD2',
+        'Temperatura do Solo (0-10cm)': 'TS0',
+        'Temperatura do Solo (>10cm)': 'TS10',
+        'Pressão Atmosférica': 'APM',
+        'Vento (Velocidade & Direção)': 'WND',
+        'Velocidade Vento (10m)': 'WS10',
+        'Humidade Relativa': 'HRD0',
+        'Nebulosidade': 'CL',
+        'Precipitação Convectiva': 'PAC0',
+        'Intensidade Precipitação': 'PR0',
+        'Precipitação Acumulada': 'PA0',
+        'Precipitação Acumulada - Chuva': 'PAR0',
+        'Precipitação Acumulada - Neve': 'PAS0',
+        'Profundidade Neve': 'SD0'
+    };
+
+    const weatherLayerKey = weatherLayerMapping[selectedLayerName];
+
+    if ((isWeatherLayerOption || selectedLayerName === "Nenhum ") && currentWeatherLegend) {
         map.removeControl(currentWeatherLegend);
         currentWeatherLegend = null;
     }
-    if (selectedLayerName == "Nenhum" && currentRiskLegend) {
+    if (selectedLayerName === "Nenhum" && currentRiskLegend) {
         map.removeControl(currentRiskLegend);
         currentRiskLegend = null;
     }
 
     if (isRiskLayer) {
         addRiskLegend(map);
-    } else if (isWeatherLayerOption) {
-        if (selectedLayerName === 'Temperatura') {
-            const stops = parseStops(`
-                stop(-65, rgba(130, 22, 146, 1))
-                stop(-55, rgba(130, 22, 146, 1))
-                stop(-45, rgba(130, 22, 146, 1))
-                stop(-40, rgba(130, 22, 146, 1))
-                stop(-30, rgba(130, 87, 219, 1))
-                stop(-20, rgba(32, 140, 236, 1))
-                stop(-10, rgba(32, 196, 232, 1))
-                stop(0, rgba(35, 221, 221, 1))
-                stop(10, rgba(194, 255, 40, 1))
-                stop(20, rgba(255, 240, 40, 1))
-                stop(25, rgba(255, 194, 40,1))
-                stop(30, rgba(252, 128, 20, 1))
-            `);
-            currentWeatherLegend = generateWeatherLegend('Temperatura (°C)', stops, '°C');
-            currentWeatherLegend.addTo(map);
-        } else if (selectedLayerName === 'Pressão') {
-            const stops = parseStops(`
-                stop(940, rgba(0,115,255,1))
-                stop(960, rgba(0,170,255,1))
-                stop(980, rgba(75,208,214,1))
-                stop(1000, rgba(141,231,199,1))
-                stop(1010, rgba(176,247,32,1))
-                stop(1020, rgba(240,184,0,1))
-                stop(1040, rgba(251,85,21,1))
-                stop(1060, rgba(243,54,59,1))
-                stop(1080, rgba(198,0,0,1))
-            `);
-            currentWeatherLegend = generateWeatherLegend('Pressão Atmosférica (hPa)', stops, 'hPa');
-            currentWeatherLegend.addTo(map);
-        } else if (selectedLayerName === 'Vento' || selectedLayerName === 'Vento (Velocidade & Direção)' || selectedLayerName === 'Velocidade Vento (10m)') {
-            const stops = parseStops(`
-                stop(1, rgba(255,255,255, 0))
-                stop(5, rgba(238,206,206, 0.4))
-                stop(15, rgba(179,100,188, 0.7))
-                stop(25, rgba(63,33,59, 0.8))
-                stop(50, rgba(116,76,172, 0.9))
-                stop(100, rgba(70,0,175,1))
-                stop(200, rgba(13,17,38,1))
-            `);
-            currentWeatherLegend = generateWeatherLegend('Vento (m/s)', stops, 'm/s');
-            currentWeatherLegend.addTo(map);
-        } else if (selectedLayerName === 'Precipitação') { // Classic rain
-            const stops = parseStops(`
-                stop(0, rgba(225, 200, 100, 0))
-                stop(0.1, rgba(200, 150, 150, 0))
-                stop(0.2, rgba(150, 150, 170, 0))
-                stop(0.5, rgba(120, 120, 190, 0))
-                stop(1, rgba(110, 110, 205, 0.3))
-                stop(10, rgba(80,80, 225, 0.7))
-                stop(140, rgba(20, 20, 255, 0.9))
-            `);
-            currentWeatherLegend = generateWeatherLegend('Chuva Clássica (mm)', stops, 'mm');
-            currentWeatherLegend.addTo(map);
-        } else if (selectedLayerName === 'Nuvens' || selectedLayerName === 'Nebulosidade') { // Classic clouds
-            const stops = parseStops(`
-                stop(0, rgba(255, 255, 255, 0.0))
-                stop(10, rgba(253, 253, 255, 0.1))
-                stop(20, rgba(252, 251, 255, 0.2))
-                stop(30, rgba(250, 250, 255, 0.3))
-                stop(40, rgba(249, 248, 255, 0.4))
-                stop(50, rgba(247, 247, 255, 0.5))
-                stop(60, rgba(246, 245, 255, 0.75))
-                stop(70, rgba(244, 244, 255, 1))
-                stop(80, rgba(243, 242, 255, 1))
-                stop(90, rgba(242, 241, 255, 1))
-                stop(100, rgba(240, 240, 255, 1))
-            `);
-            currentWeatherLegend = generateWeatherLegend('Nuvens Clássicas (0-100%)', stops, '%');
-            currentWeatherLegend.addTo(map);
-        } else if (selectedLayerName === 'Neve' || selectedLayerName === 'Profundidade Neve' || selectedLayerName === 'Precipitação Acumulada - Neve') { // Snow
-            const stops = parseStops(`
-                stop(0, transparent)
-                stop(5, #00d8ff)
-                stop(10, #00b6ff)
-                stop(25.076, #9549ff)
-            `);
-            currentWeatherLegend = generateWeatherLegend('Neve (mm)', stops, 'mm');
-            currentWeatherLegend.addTo(map);
-        } else if (selectedLayerName === 'Precipitação Convectiva') { // PAC0
-            const stops = parseStops(`
-                stop(0, rgba(225, 200, 100, 0))
-                stop(2, #b3e0ff)
-                stop(5, #66b3ff)
-                stop(10, #005ce6)
-            `);
-            currentWeatherLegend = generateWeatherLegend('Precipitação Convectiva (mm)', stops, 'mm');
-            currentWeatherLegend.addTo(map);
-        } else if (selectedLayerName === 'Intensidade Precipitação') { // PR0
-            const stops = parseStops(`
-                stop(0, rgba(225, 200, 100, 0))
-                stop(0.02, #b3e0ff)
-                stop(0.05, #66b3ff)
-                stop(0.1, #005ce6)
-            `);
-            currentWeatherLegend = generateWeatherLegend('Intensidade Precipitação (mm/s)', stops, 'mm/s');
-            currentWeatherLegend.addTo(map);
-        } else if (selectedLayerName === 'Precipitação Acumulada' || selectedLayerName === 'Precipitação Acumulada - Chuva') { // PA0, PAR0
-            const stops = parseStops(`
-                stop(0, rgba(225, 200, 100, 0))
-                stop(10, #b3e0ff)
-                stop(25, #66b3ff)
-                stop(50, #005ce6)
-            `);
-            currentWeatherLegend = generateWeatherLegend('Precipitação Acumulada (mm)', stops, 'mm');
-            currentWeatherLegend.addTo(map);
-        } else if (selectedLayerName === 'Temperatura do Ar (2m)') { // TA2
-            const stops = parseStops(`
-                stop(-65, rgba(130, 22, 146, 1))
-                stop(-55, rgba(130, 22, 146, 1))
-                stop(-45, rgba(130, 22, 146, 1))
-                stop(-40, rgba(130, 22, 146, 1))
-                stop(-30, rgba(130, 87, 219, 1))
-                stop(-20, rgba(32, 140, 236, 1))
-                stop(-10, rgba(32, 196, 232, 1))
-                stop(0, rgba(35, 221, 221, 1))
-                stop(10, rgba(194, 255, 40, 1))
-                stop(20, rgba(255, 240, 40, 1))
-                stop(25, rgba(255, 194, 40,1))
-                stop(30, rgba(252, 128, 20, 1))
-            `);
-            currentWeatherLegend = generateWeatherLegend('Temperatura do Ar (2m) (°C)', stops, '°C');
-            currentWeatherLegend.addTo(map);
-        } else if (selectedLayerName === 'Temperatura do Ponto de Orvalho') { // TD2
-            const stops = parseStops(`
-                stop(-20, #4a75b3)
-                stop(0, #8ecae6)
-                stop(15, #f4e87c)
-                stop(30, #ff8c42)
-            `);
-            currentWeatherLegend = generateWeatherLegend('Temperatura do Ponto de Orvalho (°C)', stops, '°C');
-            currentWeatherLegend.addTo(map);
-        } else if (selectedLayerName === 'Temperatura do Solo (0-10cm)') { // TS0
-            const stops = parseStops(`
-                stop(273, #8f5d3d)
-                stop(288, #d4a572)
-                stop(303, #ffcc99)
-            `);
-            currentWeatherLegend = generateWeatherLegend('Temperatura do Solo (0-10cm) (K)', stops, 'K');
-            currentWeatherLegend.addTo(map);
-        } else if (selectedLayerName === 'Temperatura do Solo (>10cm)') { // TS10
-            const stops = parseStops(`
-                stop(273, #8f5d3d)
-                stop(288, #d4a572)
-                stop(303, #ffcc99)
-            `);
-            currentWeatherLegend = generateWeatherLegend('Temperatura do Solo (>10cm) (K)', stops, 'K');
-            currentWeatherLegend.addTo(map);
-        } else if (selectedLayerName === 'Humidade Relativa') { // KHRD0
-            const stops = parseStops(`
-                stop(0, rgba(255,255,255, 0))
-                stop(30, #e6f7ff)
-                stop(70, #80ccff)
-                stop(100, #0066cc)
-            `);
-            currentWeatherLegend = generateWeatherLegend('Humidade Relativa (%)', stops, '%');
-            currentWeatherLegend.addTo(map);
-        }
+    } else if (weatherLayerKey && weatherLegendsData[weatherLayerKey]) {
+        const legendInfo = weatherLegendsData[weatherLayerKey];
+        currentWeatherLegend = generateWeatherLegend(legendInfo.name, legendInfo.stops, legendInfo.unit);
+        currentWeatherLegend.addTo(map);
     }
 }
 
@@ -493,62 +330,77 @@ function addWeatherLayers(map) {
     const OWM_APP_ID = '89ae8b33d0bde5d8a89a7f5550e87869';
 
     var cloudinessLayer = L.tileLayer('http://maps.openweathermap.org/maps/2.0/weather/{layer}/{z}/{x}/{y}?appid={appId}', {
+        minZoom: 2,
         layer: 'CL',
         appId: OWM_APP_ID
     });
     var precipitationConvectiveLayer = L.tileLayer('http://maps.openweathermap.org/maps/2.0/weather/{layer}/{z}/{x}/{y}?appid={appId}', {
+        minZoom: 2,
         layer: 'PAC0',
         appId: OWM_APP_ID
     });
     var precipitationIntensityLayer = L.tileLayer('http://maps.openweathermap.org/maps/2.0/weather/{layer}/{z}/{x}/{y}?appid={appId}', {
+        minZoom: 2,
         layer: 'PR0',
         appId: OWM_APP_ID
     });
     var accumulatedPrecipitationLayer = L.tileLayer('http://maps.openweathermap.org/maps/2.0/weather/{layer}/{z}/{x}/{y}?appid={appId}', {
+        minZoom: 2,
         layer: 'PA0',
         appId: OWM_APP_ID
     });
     var accumulatedPrecipitationRainLayer = L.tileLayer('http://maps.openweathermap.org/maps/2.0/weather/{layer}/{z}/{x}/{y}?appid={appId}', {
+        minZoom: 2,
         layer: 'PAR0',
         appId: OWM_APP_ID
     });
     var accumulatedPrecipitationSnowLayer = L.tileLayer('http://maps.openweathermap.org/maps/2.0/weather/{layer}/{z}/{x}/{y}?appid={appId}', {
+        minZoom: 2,
         layer: 'PAS0',
         appId: OWM_APP_ID
     });
     var snowDepthLayer = L.tileLayer('http://maps.openweathermap.org/maps/2.0/weather/{layer}/{z}/{x}/{y}?appid={appId}', {
+        minZoom: 2,
         layer: 'SD0',
         appId: OWM_APP_ID
     });
     var windSpeed10mLayer = L.tileLayer('http://maps.openweathermap.org/maps/2.0/weather/{layer}/{z}/{x}/{y}?appid={appId}', {
+        minZoom: 2,
         layer: 'WS10',
         appId: OWM_APP_ID
     });
     var jointWindLayer = L.tileLayer('http://maps.openweathermap.org/maps/2.0/weather/{layer}/{z}/{x}/{y}?appid={appId}', {
+        minZoom: 2,
         layer: 'WND',
         appId: OWM_APP_ID
     });
     var atmosphericPressureLayer = L.tileLayer('http://maps.openweathermap.org/maps/2.0/weather/{layer}/{z}/{x}/{y}?appid={appId}', {
+        minZoom: 2,
         layer: 'APM',
         appId: OWM_APP_ID
     });
     var airTemperature2mLayer = L.tileLayer('http://maps.openweathermap.org/maps/2.0/weather/{layer}/{z}/{x}/{y}?appid={appId}', {
+        minZoom: 2,
         layer: 'TA2',
         appId: OWM_APP_ID
     });
     var dewPointTemperatureLayer = L.tileLayer('http://maps.openweathermap.org/maps/2.0/weather/{layer}/{z}/{x}/{y}?appid={appId}', {
+        minZoom: 2,
         layer: 'TD2',
         appId: OWM_APP_ID
     });
     var soilTemperature0_10cmLayer = L.tileLayer('http://maps.openweathermap.org/maps/2.0/weather/{layer}/{z}/{x}/{y}?appid={appId}', {
+        minZoom: 2,
         layer: 'TS0',
         appId: OWM_APP_ID
     });
     var soilTemperatureGt10cmLayer = L.tileLayer('http://maps.openweathermap.org/maps/2.0/weather/{layer}/{z}/{x}/{y}?appid={appId}', {
+        minZoom: 2,
         layer: 'TS10',
         appId: OWM_APP_ID
     });
     var relativeHumidityLayer = L.tileLayer('http://maps.openweathermap.org/maps/2.0/weather/{layer}/{z}/{x}/{y}?appid={appId}', {
+        minZoom: 2,
         layer: 'HRD0',
         appId: OWM_APP_ID
     });
@@ -560,16 +412,16 @@ function addWeatherLayers(map) {
         'Temperatura do Solo (0-10cm)': soilTemperature0_10cmLayer,
         'Temperatura do Solo (>10cm)': soilTemperatureGt10cmLayer,
         'Pressão Atmosférica': atmosphericPressureLayer,
-        'Vento (Velocidade & Direção)': jointWindLayer, // WND
-        'Velocidade Vento (10m)': windSpeed10mLayer, // WS10
-        'Humidade Relativa': relativeHumidityLayer, // KHRD0
-        'Nebulosidade': cloudinessLayer, // CL
-        'Precipitação Convectiva': precipitationConvectiveLayer, // PAC0
-        'Intensidade Precipitação': precipitationIntensityLayer, // PR0
-        'Precipitação Acumulada': accumulatedPrecipitationLayer, // PA0
-        'Precipitação Acumulada - Chuva': accumulatedPrecipitationRainLayer, // PAR0
-        'Precipitação Acumulada - Neve': accumulatedPrecipitationSnowLayer, // PAS0
-        'Profundidade Neve': snowDepthLayer // SD0
+        'Vento (Velocidade & Direção)': jointWindLayer,
+        'Velocidade Vento (10m)': windSpeed10mLayer,
+        'Humidade Relativa': relativeHumidityLayer,
+        'Nebulosidade': cloudinessLayer,
+        'Precipitação Convectiva': precipitationConvectiveLayer,
+        'Intensidade Precipitação': precipitationIntensityLayer,
+        'Precipitação Acumulada': accumulatedPrecipitationLayer,
+        'Precipitação Acumulada - Chuva': accumulatedPrecipitationRainLayer,
+        'Precipitação Acumulada - Neve': accumulatedPrecipitationSnowLayer,
+        'Profundidade Neve': snowDepthLayer
     };
 
     noneWeatherLayer.addTo(map);
@@ -710,19 +562,23 @@ async function setupControls() {
     console.log('Sent riskData request to worker.');
 }
 
-function getParameterByName(name, url) {
-    if (!url) url = window.location.href;
-    name = name.replace(/[\[\]]/g, '\\$&');
-    const regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)');
-    const results = regex.exec(url);
-    if (!results) return null;
-    if (!results[2]) return '';
-    return decodeURIComponent(results[2].replace(/\+/g, ' '));
+async function loadWeatherLegendsData() {
+    try {
+        const response = await fetch('json/weather_legends.json');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        weatherLegendsData = await response.json();
+        console.log('weather_legends.json loaded successfully.');
+    } catch (error) {
+        console.error('Error loading weather_legends.json:', error);
+    }
 }
 
 window.onload = async () => {
     console.log('Window loaded. Initializing map...');
     initializeMap();
+    await loadWeatherLegendsData();
     await setupControls();
     console.log('Setup controls initiated.');
     addWeatherLayers(map);
