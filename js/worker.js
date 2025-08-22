@@ -17,8 +17,8 @@ function processFirePoints(fireFeatures, boundaryGeometry) {
     fireFeatures.forEach(f => {
         const props = f.properties;
         const date = new Date(props.ACQ_DATE || props.acq_time);
+        
         let confidence;
-
         if (props.confidence === 'nominal') {
             confidence = 'Normal';
         } else if (props.confidence === 'low') {
@@ -29,10 +29,17 @@ function processFirePoints(fireFeatures, boundaryGeometry) {
             confidence = props.confidence;
         };
 
+        let satellite;
+        if (props.SATELLITE == 'A') {
+            satellite = 'Aqua';
+        } else if (props.SATELLITE == 'T') {
+            satellite = 'Terra';
+        }
+
         const properties = {
             brightness: props.BRIGHTNESS || props.bright_ti4,
             acq_date: date.toLocaleString(),
-            satellite: props.SATELLITE || props.satellite,
+            satellite: satellite || props.satellite,
             confidence: props.CONFIDENCE || confidence,
             daynight: (props.DAYNIGHT || props.daynight) == 'D' ? 'Dia' : 'Noite',
             frp: props.FRP || props.frp,
@@ -243,15 +250,12 @@ self.onmessage = async function (e) {
             }
 
             const riskLayers = {};
-            let today = new Date();
-            let tomorrow = new Date(today);
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            let aftertomorrow = new Date(today);
-            aftertomorrow.setDate(aftertomorrow.getDate() + 2);
-
-            self.postMessage({ type: 'progress', message: `Fetching Risco ${today.toLocaleDateString()} data...` });
+            let date;
+            
+            self.postMessage({ type: 'progress', message: 'Fetching Risco data...' });
             const dataToday = await fetchRiskData('https://api-dev.fogos.pt/v1/risk-today');
             if (dataToday.success) {
+                date = new Date(dataToday.data.dataPrev);
                 const geoJsonToday = {
                     type: 'FeatureCollection',
                     features: concelhosGeoJSON.features.map(feature => {
@@ -266,14 +270,14 @@ self.onmessage = async function (e) {
                         };
                     })
                 };
-                riskLayers[`Risco ${today.toLocaleDateString()}`] = geoJsonToday;
+                riskLayers[`Risco ${date.toLocaleDateString()}`] = geoJsonToday;
             } else {
-                console.warn(`Failed to load Risco ${today.toLocaleDateString()} data:`, dataToday.message);
+                console.warn(`Failed to load Risco ${date.toLocaleDateString()} data:`, dataToday.message);
             }
 
-            self.postMessage({ type: 'progress', message: `Fetching Risco ${tomorrow.toLocaleDateString()} data...` });
             const dataTomorrow = await fetchRiskData('https://api-dev.fogos.pt/v1/risk-tomorrow');
             if (dataTomorrow.success) {
+                date = new Date(dataTomorrow.data.dataPrev);
                 const geoJsonTomorrow = {
                     type: 'FeatureCollection',
                     features: concelhosGeoJSON.features.map(feature => {
@@ -288,14 +292,14 @@ self.onmessage = async function (e) {
                         };
                     })
                 };
-                riskLayers[`Risco ${tomorrow.toLocaleDateString()}`] = geoJsonTomorrow;
+                riskLayers[`Risco ${date.toLocaleDateString()}`] = geoJsonTomorrow;
             } else {
-                console.warn(`Failed to load Risco ${tomorrow.toLocaleDateString()} data:`, dataTomorrow.message);
+                console.warn(`Failed to load Risco ${date.toLocaleDateString()} data:`, dataTomorrow.message);
             }
 
-            self.postMessage({ type: 'progress', message: `Fetching Risco ${aftertomorrow.toLocaleDateString()} data...` });
             const dataAfter = await fetchRiskData('https://api-dev.fogos.pt/v1/risk-after');
             if (dataAfter.success) {
+                date = new Date(dataAfter.data.dataPrev);
                 const geoJsonAfter = {
                     type: 'FeatureCollection',
                     features: concelhosGeoJSON.features.map(feature => {
@@ -310,9 +314,9 @@ self.onmessage = async function (e) {
                         };
                     })
                 };
-                riskLayers[`Risco ${aftertomorrow.toLocaleDateString()}`] = geoJsonAfter;
+                riskLayers[`Risco ${date.toLocaleDateString()}`] = geoJsonAfter;
             } else {
-                console.warn(`Failed to load Risco ${aftertomorrow.toLocaleDateString()} data:`, dataAfter.message);
+                console.warn(`Failed to load Risco ${date.toLocaleDateString()} data:`, dataAfter.message);
             }
 
             if (Object.keys(riskLayers).length > 0) {
