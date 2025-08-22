@@ -113,6 +113,10 @@ function initializeMap() {
     noneWeatherLayer = L.layerGroup();
 
     map.on('baselayerchange', onBaseLayerChange);
+    map.setMaxBounds([
+        [-90, -180],
+        [90, 180]
+    ]);
 }
 
 function resetOverlays() {
