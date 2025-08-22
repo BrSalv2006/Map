@@ -78,6 +78,10 @@ function initializeMap() {
         zoom: 7,
         layers: BASE_LAYERS['Street']
     });
+
+    map.createPane('weatherPane');
+    map.getPane('weatherPane').style.zIndex = 300;
+
     L.control.locate({
         flyTo: true,
         locateOptions: {
@@ -90,7 +94,7 @@ function initializeMap() {
         position: 'topright'
     }).addTo(map);
 
-    fireDataLayerControl = L.control.layers(null, {}, {
+    fireDataLayerControl = L.control.layers(null, null, {
         collapsed: true,
         position: 'topright'
     });
@@ -332,77 +336,92 @@ function addWeatherLayers(map) {
     var cloudinessLayer = L.tileLayer('http://maps.openweathermap.org/maps/2.0/weather/{layer}/{z}/{x}/{y}?appid={appId}', {
         minZoom: 2,
         layer: 'CL',
-        appId: OWM_APP_ID
+        appId: OWM_APP_ID,
+        pane: 'weatherPane'
     });
     var precipitationConvectiveLayer = L.tileLayer('http://maps.openweathermap.org/maps/2.0/weather/{layer}/{z}/{x}/{y}?appid={appId}', {
         minZoom: 2,
         layer: 'PAC0',
-        appId: OWM_APP_ID
+        appId: OWM_APP_ID,
+        pane: 'weatherPane'
     });
     var precipitationIntensityLayer = L.tileLayer('http://maps.openweathermap.org/maps/2.0/weather/{layer}/{z}/{x}/{y}?appid={appId}', {
         minZoom: 2,
         layer: 'PR0',
-        appId: OWM_APP_ID
+        appId: OWM_APP_ID,
+        pane: 'weatherPane'
     });
     var accumulatedPrecipitationLayer = L.tileLayer('http://maps.openweathermap.org/maps/2.0/weather/{layer}/{z}/{x}/{y}?appid={appId}', {
         minZoom: 2,
         layer: 'PA0',
-        appId: OWM_APP_ID
+        appId: OWM_APP_ID,
+        pane: 'weatherPane'
     });
     var accumulatedPrecipitationRainLayer = L.tileLayer('http://maps.openweathermap.org/maps/2.0/weather/{layer}/{z}/{x}/{y}?appid={appId}', {
         minZoom: 2,
         layer: 'PAR0',
-        appId: OWM_APP_ID
+        appId: OWM_APP_ID,
+        pane: 'weatherPane'
     });
     var accumulatedPrecipitationSnowLayer = L.tileLayer('http://maps.openweathermap.org/maps/2.0/weather/{layer}/{z}/{x}/{y}?appid={appId}', {
         minZoom: 2,
         layer: 'PAS0',
-        appId: OWM_APP_ID
+        appId: OWM_APP_ID,
+        pane: 'weatherPane'
     });
     var snowDepthLayer = L.tileLayer('http://maps.openweathermap.org/maps/2.0/weather/{layer}/{z}/{x}/{y}?appid={appId}', {
         minZoom: 2,
         layer: 'SD0',
-        appId: OWM_APP_ID
+        appId: OWM_APP_ID,
+        pane: 'weatherPane'
     });
     var windSpeed10mLayer = L.tileLayer('http://maps.openweathermap.org/maps/2.0/weather/{layer}/{z}/{x}/{y}?appid={appId}', {
         minZoom: 2,
         layer: 'WS10',
-        appId: OWM_APP_ID
+        appId: OWM_APP_ID,
+        pane: 'weatherPane'
     });
     var jointWindLayer = L.tileLayer('http://maps.openweathermap.org/maps/2.0/weather/{layer}/{z}/{x}/{y}?appid={appId}', {
         minZoom: 2,
         layer: 'WND',
-        appId: OWM_APP_ID
+        appId: OWM_APP_ID,
+        pane: 'weatherPane'
     });
     var atmosphericPressureLayer = L.tileLayer('http://maps.openweathermap.org/maps/2.0/weather/{layer}/{z}/{x}/{y}?appid={appId}', {
         minZoom: 2,
         layer: 'APM',
-        appId: OWM_APP_ID
+        appId: OWM_APP_ID,
+        pane: 'weatherPane'
     });
     var airTemperature2mLayer = L.tileLayer('http://maps.openweathermap.org/maps/2.0/weather/{layer}/{z}/{x}/{y}?appid={appId}', {
         minZoom: 2,
         layer: 'TA2',
-        appId: OWM_APP_ID
+        appId: OWM_APP_ID,
+        pane: 'weatherPane'
     });
     var dewPointTemperatureLayer = L.tileLayer('http://maps.openweathermap.org/maps/2.0/weather/{layer}/{z}/{x}/{y}?appid={appId}', {
         minZoom: 2,
         layer: 'TD2',
-        appId: OWM_APP_ID
+        appId: OWM_APP_ID,
+        pane: 'weatherPane'
     });
     var soilTemperature0_10cmLayer = L.tileLayer('http://maps.openweathermap.org/maps/2.0/weather/{layer}/{z}/{x}/{y}?appid={appId}', {
         minZoom: 2,
         layer: 'TS0',
-        appId: OWM_APP_ID
+        appId: OWM_APP_ID,
+        pane: 'weatherPane'
     });
     var soilTemperatureGt10cmLayer = L.tileLayer('http://maps.openweathermap.org/maps/2.0/weather/{layer}/{z}/{x}/{y}?appid={appId}', {
         minZoom: 2,
         layer: 'TS10',
-        appId: OWM_APP_ID
+        appId: OWM_APP_ID,
+        pane: 'weatherPane'
     });
     var relativeHumidityLayer = L.tileLayer('http://maps.openweathermap.org/maps/2.0/weather/{layer}/{z}/{x}/{y}?appid={appId}', {
         minZoom: 2,
         layer: 'HRD0',
-        appId: OWM_APP_ID
+        appId: OWM_APP_ID,
+        pane: 'weatherPane'
     });
 
     var baseLayers = {
