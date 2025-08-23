@@ -140,15 +140,16 @@ async function fetchRiskData(url) {
 self.onmessage = async function (e) {
     const {
         type,
+        url,
         dayRange
     } = e.data;
 
     try {
         if (type === 'initData') {
             self.postMessage({ type: 'progress', message: 'Loading geographical data...' });
-            let responsePortugal = await fetch('/json/portugal.json');
+            let responsePortugal = await fetch(url + 'json/portugal.json');
             workerPortugalGeometry = await responsePortugal.json();
-            let responseConcelhos = await fetch('/json/concelhos.json');
+            let responseConcelhos = await fetch(url + 'json/concelhos.json');
             workerConcelhosGeoJSON = await responseConcelhos.json();
             self.postMessage({ type: 'initDataComplete' });
         } else if (type === 'fireData') {

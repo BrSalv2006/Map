@@ -419,7 +419,10 @@ function editBackgroundImages() {
 
 function setupControls() {
     setupWorker();
-    currentWorker.postMessage({ type: 'initData' });
+    currentWorker.postMessage({
+        type: 'initData',
+        url: window.location.href
+    });
 }
 
 async function loadWeatherLegendsData() {
