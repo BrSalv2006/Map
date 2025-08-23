@@ -1,4 +1,4 @@
-importScripts('https://unpkg.com/@turf/turf@6.5.0/turf.min.js');
+importScripts('https://unpkg.com/@turf/turf/turf.min.js');
 
 let workerPortugalGeometry;
 let workerConcelhosGeoJSON;
@@ -91,7 +91,8 @@ function calculateBurntAreas(finalData) {
                     const buffers = clusterPoints.map(point => turf.buffer(point, 1, {
                         units: 'kilometers'
                     }));
-                    let mergedArea = buffers.reduce((merged, buffer) => turf.union(merged, buffer));
+
+                    let mergedArea = turf.union(turf.featureCollection(buffers));
                     if (mergedArea) {
                         let smoothedArea = turf.buffer(mergedArea, 1, {
                             units: 'kilometers'
