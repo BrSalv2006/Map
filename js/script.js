@@ -401,19 +401,19 @@ function setupWorker() {
 
 function editBackgroundImages() {
     let baseLayerControls = baseLayerControl.getContainer().children[0].style;
-    baseLayerControls.backgroundImage = "url('https://cdn-icons-png.flaticon.com/512/592/592245.png')";
+    baseLayerControls.backgroundImage = "url('img/map.png')";
     baseLayerControls.backgroundSize = "28px";
 
     let fireDataLayerControls = fireDataLayerControl.getContainer().children[0].style;
-    fireDataLayerControls.backgroundImage = "url('https://cdn-icons-png.flaticon.com/512/12957/12957965.png')";
+    fireDataLayerControls.backgroundImage = "url('img/satellite.png')";
     fireDataLayerControls.backgroundSize = "28px";
 
     let weatherLayerControls = weatherLayerControl.getContainer().children[0].style;
-    weatherLayerControls.backgroundImage = "url('https://cdn-icons-png.flaticon.com/512/3313/3313888.png')";
+    weatherLayerControls.backgroundImage = "url('img/weather.png')";
     weatherLayerControls.backgroundSize = "28px";
 
     let riskLayerControls = riskLayerControl.getContainer().children[0].style;
-    riskLayerControls.backgroundImage = "url('https://cdn-icons-png.flaticon.com/512/3239/3239831.png')";
+    riskLayerControls.backgroundImage = "url('img/fire_risk.png')";
     riskLayerControls.backgroundSize = "28px";
 }
 
