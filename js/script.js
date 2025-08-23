@@ -1,59 +1,3 @@
-const BASE_LAYERS = {
-    "Street": L.tileLayer('https://api.maptiler.com/maps/streets-v2/256/{z}/{x}/{y}@2x.png?key=M5oddZtB9rr0EdbaCglK', {
-        minZoom: 2,
-        maxZoom: 22
-    }),
-    "Street Dark": L.tileLayer('https://api.maptiler.com/maps/streets-v2-dark/256/{z}/{x}/{y}@2x.png?key=M5oddZtB9rr0EdbaCglK', {
-        minZoom: 2,
-        maxZoom: 22
-    }),
-    "Street Light": L.tileLayer('https://api.maptiler.com/maps/streets-v2-light/256/{z}/{x}/{y}@2x.png?key=M5oddZtB9rr0EdbaCglK', {
-        minZoom: 2,
-        maxZoom: 22
-    }),
-    "Street Pastel": L.tileLayer('https://api.maptiler.com/maps/streets-v2-pastel/256/{z}/{x}/{y}@2x.png?key=M5oddZtB9rr0EdbaCglK', {
-        minZoom: 2,
-        maxZoom: 22
-    }),
-    "Hybrid": L.tileLayer('https://api.maptiler.com/maps/hybrid/256/{z}/{x}/{y}@2x.png?key=M5oddZtB9rr0EdbaCglK', {
-        minZoom: 2,
-        maxZoom: 22
-    }),
-    "Satellite": L.tileLayer('https://api.maptiler.com/tiles/satellite-v2/{z}/{x}/{y}.png?key=M5oddZtB9rr0EdbaCglK', {
-        minZoom: 2,
-        maxZoom: 22,
-    }),
-    "Basic": L.tileLayer('https://api.maptiler.com/maps/basic-v2/256/{z}/{x}/{y}@2x.png?key=M5oddZtB9rr0EdbaCglK', {
-        minZoom: 2,
-        maxZoom: 22
-    }),
-    "Basic Dark": L.tileLayer('https://api.maptiler.com/maps/basic-v2-dark/256/{z}/{x}/{y}@2x.png?key=M5oddZtB9rr0EdbaCglK', {
-        minZoom: 2,
-        maxZoom: 22
-    }),
-    "Basic Light": L.tileLayer('https://api.maptiler.com/maps/basic-v2-light/256/{z}/{x}/{y}@2x.png?key=M5oddZtB9rr0EdbaCglK', {
-        minZoom: 2,
-        maxZoom: 22
-    }),
-    "Outdoor": L.tileLayer('https://api.maptiler.com/maps/outdoor-v2/256/{z}/{x}/{y}@2x.png?key=M5oddZtB9rr0EdbaCglK', {
-        minZoom: 2,
-        maxZoom: 22
-    }),
-    "Outdoor Dark": L.tileLayer('https://api.maptiler.com/maps/outdoor-v2-dark/256/{z}/{x}/{y}@2x.png?key=M5oddZtB9rr0EdbaCglK', {
-        minZoom: 2,
-        maxZoom: 22
-    }),
-    "Topo": L.tileLayer('https://api.maptiler.com/maps/topo-v2/256/{z}/{x}/{y}@2x.png?key=M5oddZtB9rr0EdbaCglK', {
-        minZoom: 2,
-        maxZoom: 22
-    }),
-    "Real-Time": L.esri.tiledMapLayer({
-        url: "https://gis.nnvl.noaa.gov/arcgis/rest/services/TRUE/TRUE_current/ImageServer",
-        minZoom: 2,
-        maxZoom: 8
-    })
-};
-
 let map;
 let baseLayerControl;
 let fireDataLayerControl;
@@ -64,6 +8,7 @@ let currentOverlays = {};
 let currentRiskLegend = null;
 let currentWeatherLegend = null;
 let weatherLegendsData = {};
+let loader = document.getElementById('loader');
 
 let fireDataProcessed = false;
 let riskDataProcessed = false;
@@ -73,8 +18,7 @@ let noneWeatherLayer;
 function initializeMap() {
     map = L.map('map', {
         center: [39.557191, -7.8536599],
-        zoom: 7,
-        layers: BASE_LAYERS['Street']
+        zoom: 7
     });
 
     map.createPane('weatherPane');
@@ -87,10 +31,10 @@ function initializeMap() {
         }
     }).addTo(map);
 
-    baseLayerControl = L.control.layers(BASE_LAYERS, null, {
+    baseLayerControl = L.control.layers(null, null, {
         collapsed: true,
-        position: 'topright'
-    }).addTo(map);
+        position: 'topright',
+    });
 
     fireDataLayerControl = L.control.layers(null, null, {
         collapsed: true,
@@ -176,13 +120,13 @@ function addOrRemoveControl(control, type) {
         }
     }
     if (fireDataProcessed && riskDataProcessed) {
-        document.getElementById('loader').style.display = 'none';
+        loader.style.display = 'none';
         editBackgroundImages();
     }
 }
 
 function populateMap(data) {
-    document.getElementById('loader').innerText = 'Generating map layers...';
+    loader.innerText = 'Generating map layers...';
     resetOverlays();
 
     if (data.modis) {
@@ -293,15 +237,51 @@ function onBaseLayerChange(e) {
     }
 }
 
+function addBaseTileLayers() {
+    const createBaseTileLayer = (layerName) => L.tileLayer('https://api.maptiler.com/maps/{layer}/256/{z}/{x}/{y}@2x.png?key={key}', {
+        minZoom: 2,
+        maxZoom: 22,
+        layer: layerName,
+        key: 'M5oddZtB9rr0EdbaCglK',
+    });
+
+    const baseLayers = {
+        'Street': createBaseTileLayer('streets-v2').addTo(map),
+        'Street Dark': createBaseTileLayer('streets-v2-dark'),
+        'Street Light': createBaseTileLayer('streets-v2-light'),
+        'Street Pastel': createBaseTileLayer('streets-v2-pastel'),
+        'Hybrid': createBaseTileLayer('hybrid'),
+        "Satellite": L.tileLayer('https://api.maptiler.com/tiles/satellite-v2/{z}/{x}/{y}.png?key=M5oddZtB9rr0EdbaCglK', {
+            minZoom: 2,
+            maxZoom: 22,
+        }),
+        'Basic': createBaseTileLayer('basic-v2'),
+        'Basic Dark': createBaseTileLayer('basic-v2-dark'),
+        'Basic Light': createBaseTileLayer('basic-v2-light'),
+        'Outdoor': createBaseTileLayer('outdoor-v2'),
+        'Outdoor Dark': createBaseTileLayer('outdoor-v2-dark'),
+        'Topo': createBaseTileLayer('topo-v2'),
+        "Real-Time": L.esri.tiledMapLayer({
+            url: "https://gis.nnvl.noaa.gov/arcgis/rest/services/TRUE/TRUE_current/ImageServer",
+            minZoom: 2,
+            maxZoom: 8
+        })
+    };
+
+    baseLayerControl = L.control.layers(baseLayers, null, {
+        collapsed: true,
+        position: 'topright',
+    }).addTo(map);
+};
 
 function addWeatherLayers() {
     noneWeatherLayer = L.layerGroup();
-    const OWM_APP_ID = '89ae8b33d0bde5d8a89a7f5550e87869';
+    const appId = '89ae8b33d0bde5d8a89a7f5550e87869';
 
     const createWeatherTileLayer = (layerName) => L.tileLayer('http://maps.openweathermap.org/maps/2.0/weather/{layer}/{z}/{x}/{y}?appid={appId}', {
         minZoom: 2,
         layer: layerName,
-        appId: OWM_APP_ID,
+        appId: appId,
         pane: 'weatherPane'
     });
 
@@ -337,7 +317,6 @@ function setupWorker() {
         return;
     }
 
-    const loader = document.getElementById('loader');
     loader.style.display = 'block';
     loader.innerText = 'Initializing data processing...';
     currentWorker = new Worker('js/worker.js');
@@ -400,7 +379,7 @@ function setupWorker() {
                 riskDataProcessed = true;
             }
             if (fireDataProcessed && riskDataProcessed) {
-                document.getElementById('loader').style.display = 'none';
+                loader.style.display = 'none';
                 editBackgroundImages();
             }
         }
@@ -415,7 +394,7 @@ function setupWorker() {
         setTimeout(() => errorMessage.remove(), 5000);
         fireDataProcessed = true;
         riskDataProcessed = true;
-        document.getElementById('loader').style.display = 'none';
+        loader.style.display = 'none';
         editBackgroundImages();
     };
 }
@@ -426,7 +405,7 @@ function editBackgroundImages() {
     baseLayerControls.backgroundSize = "28px";
 
     let fireDataLayerControls = fireDataLayerControl.getContainer().children[0].style;
-    fireDataLayerControls.backgroundImage = "url('https://cdn-icons-png.flaticon.com/512/17143/17143716.png')";
+    fireDataLayerControls.backgroundImage = "url('https://cdn-icons-png.flaticon.com/512/12957/12957965.png')";
     fireDataLayerControls.backgroundSize = "28px";
 
     let weatherLayerControls = weatherLayerControl.getContainer().children[0].style;
@@ -461,7 +440,8 @@ async function loadWeatherLegendsData() {
 
 window.onload = async () => {
     initializeMap();
+    addBaseTileLayers();
+    addWeatherLayers(map);
     await loadWeatherLegendsData();
     setupControls();
-    addWeatherLayers(map);
 };
