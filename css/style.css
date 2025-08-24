@@ -268,26 +268,26 @@ canvas#myChart {
 .dot.status-5,
 .dot.status-7,
 .dot.status-8 {
-    background-image: url("/img/ico_fire.svg");
+    background-image: url("../img/ico_fire.svg");
 }
 
 .dot.status-3,
 .dot.status-4 {
-    background-image: url("/img/ico_alarm.svg");
+    background-image: url("../img/ico_alarm.svg");
 }
 
 .dot.status-6,
 .dot.status-10 {
-    background-image: url("/img/ico_pointer.svg");
+    background-image: url("../img/ico_pointer.svg");
 }
 
 .dot.status-9 {
-    background-image: url("/img/ico_watch.svg");
+    background-image: url("../img/ico_watch.svg");
 }
 
 .dot.status-11,
 .dot.status-12 {
-    background-image: url("/img/ico_fake.svg");
+    background-image: url("../img/ico_fake.svg");
 }
 
 .dot.status-99,
