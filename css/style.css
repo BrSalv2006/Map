@@ -1,12 +1,13 @@
 :root {
     --panel-bg: #ffffff;
     --text-color: #333;
-    --border-color: #ccc;
+    --border-color: #e0e0e0;
     --shadow-color: rgba(0, 0, 0, 0.1);
     --button-bg: #007bff;
     --button-hover-bg: #0056b3;
     --button-text: #ffffff;
     --loader-bg: rgba(255, 255, 255, 0.8);
+    --card-hover-shadow: rgba(0, 0, 0, 0.15);
 }
 
 html,
@@ -15,21 +16,16 @@ body {
     width: 100%;
     margin: 0;
     padding: 0;
-    font-family: -apple-system, BlinkMacMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacMacSystemFont, "Segoe UI",
+        Roboto, Helvetica, Arial, sans-serif;
     overflow: hidden;
-}
-
-main {
-    height: 100%;
-    width: 100%;
-    position: relative;
 }
 
 #map {
     height: 100%;
     width: 100%;
     background-color: #f0f0f0;
-    transition: width 0.3s ease-out, height 0.3s ease-out; /* Smooth transition for map width and height */
+    transition: width 0.3s ease-out, height 0.3s ease-out;
 }
 
 .leaflet-control-attribution {
@@ -48,6 +44,7 @@ main {
     box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
     font-size: 1.1em;
     color: var(--text-color);
+    text-align: center;
 }
 
 .error-message {
@@ -61,6 +58,7 @@ main {
     border-radius: 5px;
     z-index: 2001;
     animation: fadeInOut 5s forwards;
+    text-align: center;
 }
 
 @keyframes fadeInOut {
@@ -83,87 +81,84 @@ main {
 
 .info.legend {
     background: white;
-    padding: 6px 8px;
-    border-radius: 5px;
-    box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
-    line-height: 18px;
-    color: #555;
+    padding: 10px 12px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px var(--shadow-color);
+    line-height: 22px;
+    color: var(--text-color);
+    font-size: 0.9em;
 }
 
 .info.legend h4 {
-    margin: 0 0 5px;
-    color: #777;
+    margin: 0 0 8px;
+    color: #555;
+    font-size: 1.1em;
+    font-weight: 600;
 }
 
 .info.legend i {
     width: 18px;
     height: 18px;
     float: left;
-    margin-right: 8px;
-    opacity: 0.7;
+    margin-right: 10px;
+    opacity: 0.85;
+    border-radius: 3px;
 }
 
-.Reduzido {
-    border-radius: 3px 3px 0px 0px;
-}
-
-.Máximo {
-    border-radius: 0px 0px 3px 3px;
-}
-
-/* Sidebar styles */
 .sidebar {
     position: absolute;
     top: 0;
     right: 0;
-    width: 0; /* Hidden by default */
+    width: 0;
     height: 100%;
     background-color: var(--panel-bg);
     box-shadow: var(--shadow-color) -5px 0 15px;
     z-index: 1000;
     overflow-y: auto;
-    transition: width 0.3s ease-out; /* Smooth transition for sidebar width */
-    display: flex; /* Keep display flex for internal layout */
-    flex-direction: column; /* For vertical stacking of content */
-    padding-bottom: 20px; /* Add some padding at the bottom for better scroll */
+    transition: width 0.3s ease-out, transform 0.3s ease-out;
+    transform: translateX(100%);
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 20px;
 }
 
 .sidebar.active {
-    width: 25%; /* Adjust width as needed for desktop */
+    width: 25%;
+    transform: translateX(0);
 }
 
-/* Responsive adjustments for sidebar */
-@media (max-width: 991px) { /* Tablets and smaller desktops */
+@media (max-width: 991px) {
     .sidebar.active {
-        width: 50%;
+        width: 40%;
     }
 }
 
-@media (max-width: 767px) { /* Mobile devices */
+@media (max-width: 767px) {
     .sidebar {
         width: 100%;
-        height: 0; /* Hidden by default on mobile */
+        height: 0;
         bottom: 0;
         top: auto;
         box-shadow: var(--shadow-color) 0 -5px 15px;
-        transition: height 0.3s ease-out; /* Update transition for height */
+        transition: height 0.3s ease-out, transform 0.3s ease-out;
+        transform: translateY(100%);
     }
 
     .sidebar.active {
-        height: 50%; /* Ensure it's active and half height on mobile */
+        height: 50%;
         width: 100%;
+        transform: translateY(0);
     }
 
     #map {
-        height: 100%; /* Map takes full height when sidebar is hidden */
+        height: 100%;
         transition: height 0.3s ease-out;
     }
 
-    #map.sidebar-active { /* Class to apply when sidebar is active on mobile */
-        height: 50%; /* Map takes half height when sidebar is active */
+    #map.sidebar-active {
+        height: 50%;
     }
 }
-
 
 @media (max-width: 600px) {
     .controls-panel {
@@ -179,53 +174,81 @@ main {
 .card {
     background-color: var(--panel-bg);
     border: 1px solid var(--border-color);
-    border-radius: 8px;
-    margin: 10px;
-    box-shadow: var(--shadow-color) 0 2px 5px;
+    border-radius: 12px;
+    margin: 15px;
+    box-shadow: 0 4px 12px var(--shadow-color);
+    transition: transform 0.2s ease-in-out,
+        box-shadow 0.2s ease-in-out;
+}
+
+.card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 16px var(--card-hover-shadow);
 }
 
 .card-body {
-    padding: 15px;
+    padding: 20px;
 }
 
 .card-title {
-    font-size: 1.2em;
+    font-size: 1.3em;
+    color: #2c3e50;
+    margin-bottom: 12px;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 8px;
+    font-weight: 700;
+    margin-block-start: 0%;
+}
+
+p.f-local,
+p.f-start,
+p.f-nature,
+p.f-location,
+.f-status,
+.f-meteo,
+.f-danger,
+.f-extra {
+    font-size: 1.05em;
     color: var(--text-color);
     margin-bottom: 10px;
-    border-bottom: 1px solid var(--border-color);
-    padding-bottom: 5px;
-}
-
-p.f-local, p.f-start, p.f-nature, p.f-location {
-    font-size: 1em;
-    color: var(--text-color);
-    margin-bottom: 8px;
-}
-
-.notification-container {
-    display: inline-block;
-    margin-left: 10px;
+    line-height: 1.5;
+    margin-block-start: 0%;
+    margin-left: 1rem;
 }
 
 .assets {
     display: flex;
     align-items: center;
-    justify-content: center;
-    flex-wrap: wrap; /* Allow assets to wrap on smaller screens */
-    margin-top: 10px;
+    justify-content: space-around;
+    flex-wrap: wrap;
+    margin-top: 15px;
+    padding: 10px 0;
+    border-top: 1px dashed var(--border-color);
+    border-bottom: 1px dashed var(--border-color);
 }
 
 .assets-icon {
-    width: 28px;
-    height: 28px;
-    margin: 0 5px;
+    width: 32px;
+    height: 32px;
+    margin: 0 8px;
+    filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.1));
 }
 
 .assets-nr {
-    font-size: 1.1em;
-    font-weight: bold;
-    color: var(--text-color);
-    margin-right: 15px;
+    font-size: 1.2em;
+    font-weight: 600;
+    color: #495057;
+    margin-right: 20px;
+}
+
+canvas#myChart {
+    width: 100% !important;
+    height: auto !important;
+    max-height: 300px;
+    margin-top: 20px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .dot {
@@ -235,7 +258,7 @@ p.f-local, p.f-start, p.f-nature, p.f-location {
     display: flex;
     justify-content: center;
     align-items: center;
-    background: no-repeat 50%/50%;
+    background: no-repeat 50%/60%;
     background-position: center;
 }
 
@@ -245,63 +268,63 @@ p.f-local, p.f-start, p.f-nature, p.f-location {
 .dot.status-5,
 .dot.status-7,
 .dot.status-8 {
-    background-image: url("https://fogos.pt/img/ico_fire.svg");
+    background-image: url("img/ico_fire.svg");
 }
 
 .dot.status-3,
 .dot.status-4 {
-    background-image: url("https://fogos.pt/img/ico_alarm.svg")
+    background-image: url("img/ico_alarm.svg");
 }
 
 .dot.status-6,
 .dot.status-10 {
-    background-image: url("https://fogos.pt/img/ico_pointer.svg");
+    background-image: url("img/ico_pointer.svg");
 }
 
 .dot.status-9 {
-    background-image: url("https://fogos.pt/img/ico_watch.svg");
+    background-image: url("img/ico_watch.svg");
 }
 
 .dot.status-11,
 .dot.status-12 {
-    background-image: url("https://fogos.pt/img/ico_fake.svg");
+    background-image: url("img/ico_fake.svg");
 }
 
 .dot.status-99,
 .dot.status-important {
-    background-color: #ff410c
+    background-color: #ff410c;
 }
 
 .dot.status-99-r {
-    background-color: #0c5dff
+    background-color: #0c5dff;
 }
 
 .dot.status-3,
 .dot.status-5,
 .dot.status-6 {
-    background-color: #b81e1f
+    background-color: #b81e1f;
 }
 
 .dot.status-4 {
-    background-color: #ff6e02
+    background-color: #ff6e02;
 }
 
 .dot.status-7,
 .dot.status-9 {
-    background-color: #65c4ed
+    background-color: #65c4ed;
 }
 
 .dot.status-8 {
-    background-color: #8e7e7d
+    background-color: #8e7e7d;
 }
 
 .dot.status-10 {
-    background-color: #6abf59
+    background-color: #6abf59;
 }
 
 .dot.status-11,
 .dot.status-12 {
-    background-color: #bdbdbd
+    background-color: #bdbdbd;
 }
 
 .dot.dotInfo,
@@ -316,18 +339,92 @@ p.f-local, p.f-start, p.f-nature, p.f-location {
     margin-left: -13px;
     max-width: 100%;
     max-height: 100%;
-    overflow: visible
+    overflow: visible;
 }
 
-/* Flexbox for the row in the sidebar */
 .row {
     display: flex;
-    flex-wrap: wrap; /* Allows columns to wrap */
-    margin-right: -10px; /* compensate for card margin */
-    margin-left: -10px; /* compensate for card margin */
+    flex-wrap: wrap;
+    margin-right: -10px;
+    margin-left: -10px;
 }
 
 .col-12 {
     flex: 0 0 100%;
     max-width: 100%;
+}
+
+.extra {
+    display: none;
+}
+
+.extra.active {
+    display: block;
+}
+
+.f-location a {
+    color: #007bff;
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.2s ease-in-out;
+}
+
+.f-location a:hover {
+    color: #0056b3;
+}
+
+.f-local a {
+    color: #007bff;
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.2s ease-in-out;
+}
+
+.f-local a:hover {
+    color: #0056b3;
+}
+
+.fire-status {
+    margin: 0 0 1rem;
+    color: #fff;
+    text-transform: uppercase;
+}
+
+.fire-status li {
+    padding: 10px 6px;
+    border-radius: 3px;
+    -webkit-transition: width 0.3s;
+    transition: width 0.3s;
+}
+
+.fire-status li:not(:first-child) {
+    margin-left: 2px;
+}
+
+.fire-status li.status-max {
+    background-color: #711313;
+}
+
+.fire-status li.status-vhigh {
+    background-color: #b81e1f;
+}
+
+.fire-status li.status-high {
+    background-color: #ff6e02;
+}
+
+.fire-status li.status-mod {
+    background-color: #ffb202;
+}
+
+.fire-status li.status-min {
+    background-color: #6abf59;
+}
+
+.fire-status li.active {
+    width: 100%;
+}
+
+.fire-status li.active:before {
+    content: attr(data-status);
 }

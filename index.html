@@ -5,7 +5,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <meta name="description" content="Visualizador de incêndios em Portugal">
         <title>Portugal Fire Map</title>
-        <link rel="icon" type="image/x-icon" href="/img/fire_icon.png">
+        <link rel="icon" type="image/x-icon" href="img/fire_icon.png">
         <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
         <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css">
         <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css">
@@ -16,100 +16,81 @@
         <div id="map"></div>
         <div id="loader" class="loader" style="display: none;">Loading...</div>
         <div class="sidebar">
-
-<div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-body">
-                <h4 class="card-title">Local</h4>
-                <p class="f-local">
-                                    </p>
-
-                <div class="notification-container">
-                    <i class="far fa-bell click-notification" data-id=""></i>
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-body">
+                            <h4 class="card-title">Local</h4>
+                            <p class="f-local"></p>
+                            <h4 class="card-title">Início</h4>
+                            <p class="f-start"></p>
+                            <h4 class="card-title">Natureza</h4>
+                            <p class="f-nature"></p>
+                            <h4 class="card-title">Localização</h4>
+                            <p class="f-location"></p>
+                            <p><small>Última atualização: <span class="f-update"></span></small></p>
+                        </div>
+                    </div>
                 </div>
-
-                <h4 class="card-title">Início</h4>
-                <p class="f-start">
-                                    </p>
-                <h4 class="card-title">Natureza</h4>
-                <p class="f-nature">
-                                    </p>
-
-                <h4 class="card-title">Localização</h4>
-                <p class="f-location">
-                                    </p>
-
+            </div>
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-body">
+                            <h4 class="card-title">Meios</h4>
+                            <div class="assets d-flex flex-md-wrap align-items-center justify-content-center">
+                                <img class="assets-icon" src="img/fireman.svg">
+                                <span class="assets-nr f-man"></span>
+                                <img class="assets-icon" src="img/firetruck.svg">
+                                <span class="assets-nr f-terrain"></span>
+                                <img class="assets-icon" src="img/plane.svg">
+                                <span class="assets-nr f-aerial"></span>
                             </div>
-        </div>
-    </div>
-</div>
-<div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-body">
-                <h4 class="card-title">Meios</h4>
-                <div class="assets d-flex flex-md-wrap align-items-center justify-content-center">
-                    <img class="assets-icon" src="https://fogos.pt/img/fireman.svg">
-                    <span class="assets-nr f-man">
-                                            </span>
-                    <img class="assets-icon" src="https://fogos.pt/img/firetruck.svg">
-                    <span class="assets-nr f-terrain">
-                                                </span>
-                    <img class="assets-icon" src="https://fogos.pt/img/plane.svg">
-                    <span class="assets-nr f-aerial">
-                                                </span>
+                            <canvas class="px-2 py-0" id="myChart" width="400" height="350"></canvas>
+                        </div>
+                    </div>
                 </div>
-                <canvas class="px-2 py-0" id="myChart" width="400" height="350"></canvas>
+            </div>
+            <div class="row extra">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-body">
+                            <h4 class="card-title">Informação extra</h4>
+                            <div class="f-extra"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-body">
+                            <h4 class="card-title">Estado</h4>
+                            <div class="f-status"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-body">
+                            <h4 class="card-title">Meteorologia</h4>
+                            <div class="f-meteo"></div>
+                            <h4 class="card-title">Risco de Incêndio</h4>
+                            <div class="f-danger"></div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
-</div>
-<div class="row extra">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-body">
-                <h4 class="card-title">Informação extra</h4>
-                <div class="f-extra">
-                                    </div>
-            </div>
-        </div>
-    </div>
-</div>
-<div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-body">
-                <h4 class="card-title">Estado</h4>
-                <div class="f-status">
-                                    </div>
-            </div>
-        </div>
-    </div>
-</div>
-<div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-body">
-                <h4 class="card-title">Meteo</h4>
-                <div class="f-meteo">
-                                    </div>
-                <h4 class="card-title">Risco de Incêndio</h4>
-                <div class="f-danger">
-                                    </div>
-            </div>
-        </div>
-    </div>
-</div>
-</div>
         <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
         <script src="https://unpkg.com/shpjs/dist/shp.js"></script>
         <script src="https://unpkg.com/@turf/turf/turf.min.js"></script>
         <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
         <script src="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.js"></script>
         <script src="https://unpkg.com/esri-leaflet/dist/esri-leaflet.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.js" type="text/javascript"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.4.0/Chart.min.js" type="text/javascript"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.4.0/Chart.min.js"></script>
         <script src="js/script.js"></script>
     </body>
 </html>
