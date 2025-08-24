@@ -551,8 +551,7 @@
                             backgroundColor: '#4E88B2',
                             borderColor: '#4E88B2',
                         }]
-                    },
-                    color: '#d3dad9ff'
+                    }
 
                 });
                 canvas.style.display = 'block';
