@@ -788,7 +788,7 @@ function setupControls() {
     setupWorker();
     currentWorker.postMessage({
         type: 'initData',
-        url: window.location.origin
+        url: window.location.href.split('?')[0]
     });
 }
 
