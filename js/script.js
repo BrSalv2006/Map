@@ -77,7 +77,7 @@
             }
             map.setView([39.557191, -7.8536599], 7);
 
-            document.getElementById('map').style.width = '100%';
+            document.body.classList.remove('sidebar-open');
             document.querySelector('.sidebar').classList.remove('active');
             window.history.pushState('fogo', '', window.location.href.split('?')[0]);
         });
@@ -478,9 +478,7 @@
                 sidebar.classList.add('active');
                 sidebar.scrollTop = 0;
 
-                if (window.innerWidth >= 992) {
-                    document.getElementById('map').style.width = '75%';
-                }
+                document.body.classList.add('sidebar-open');
 
                 document.querySelector('.f-local').innerHTML = locationText;
                 document.querySelector('.f-man').textContent = fire.man;
@@ -527,6 +525,8 @@
                     detailsChart.destroy();
                 }
 
+                Chart.defaults.color = '#d3dad9ff';
+
                 detailsChart = new Chart(ctx, {
                     type: 'line',
                     data: {
@@ -550,9 +550,10 @@
                             fill: false,
                             backgroundColor: '#4E88B2',
                             borderColor: '#4E88B2',
-                        }
-                        ]
-                    }
+                        }]
+                    },
+                    color: '#d3dad9ff'
+                    
                 });
                 canvas.style.display = 'block';
             } else {
@@ -726,7 +727,6 @@
                 const res = window.location.href.match(/\?fogo\=(\d+)/);
                 if (res && res[1]) {
                     const fireIdFromUrl = res[1];
-                    // Defer click event to ensure markers are rendered
                     setTimeout(() => {
                         const fireElement = document.getElementById(fireIdFromUrl);
                         if (fireElement) {

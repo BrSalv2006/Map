@@ -1,5 +1,5 @@
 :root {
-    --panel-bg: #ffffff;
+    --panel-bg: rgb(55, 53, 62);
     --text-color: #333;
     --border-color: #e0e0e0;
     --shadow-color: rgba(0, 0, 0, 0.1);
@@ -8,6 +8,9 @@
     --button-text: #ffffff;
     --loader-bg: rgba(255, 255, 255, 0.8);
     --card-hover-shadow: rgba(0, 0, 0, 0.15);
+    --sidebar-width-desktop: 350px;
+    --sidebar-height-mobile: 50%;
+    color-scheme: dark;
 }
 
 html,
@@ -18,14 +21,14 @@ body {
     padding: 0;
     font-family: 'Inter', -apple-system, BlinkMacMacSystemFont, "Segoe UI",
         Roboto, Helvetica, Arial, sans-serif;
-    overflow: hidden;
+    overflow-x: hidden;
 }
 
 #map {
     height: 100%;
     width: 100%;
     background-color: #f0f0f0;
-    transition: width 0.3s ease-out, height 0.3s ease-out;
+    transition: transform 0.3s ease-out;
 }
 
 .leaflet-control-attribution {
@@ -106,16 +109,16 @@ body {
 }
 
 .sidebar {
-    position: absolute;
+    position: fixed;
     top: 0;
     right: 0;
-    width: 0;
+    width: var(--sidebar-width-desktop);
     height: 100%;
-    background-color: var(--panel-bg);
-    box-shadow: var(--shadow-color) -5px 0 15px;
+    background-color: transparent;
+    color: rgb(211, 218, 217);
     z-index: 1000;
     overflow-y: auto;
-    transition: width 0.3s ease-out, transform 0.3s ease-out;
+    transition: transform 0.3s ease-out;
     transform: translateX(100%);
     display: flex;
     flex-direction: column;
@@ -123,41 +126,45 @@ body {
 }
 
 .sidebar.active {
-    width: 25%;
     transform: translateX(0);
 }
 
-@media (max-width: 991px) {
-    .sidebar.active {
-        width: 40%;
-    }
-}
-
 @media (max-width: 767px) {
-    .sidebar {
+        .sidebar {
+        background: transparent;
         width: 100%;
-        height: 0;
+        height: var(--sidebar-height-mobile);
         bottom: 0;
         top: auto;
-        box-shadow: var(--shadow-color) 0 -5px 15px;
         transition: height 0.3s ease-out, transform 0.3s ease-out;
-        transform: translateY(100%);
     }
 
     .sidebar.active {
-        height: 50%;
-        width: 100%;
+        height: var(--sidebar-height-mobile);
         transform: translateY(0);
     }
 
-    #map {
-        height: 100%;
-        transition: height 0.3s ease-out;
+    .leaflet-bottom.leaflet-left,
+    .leaflet-bottom.leaflet-right {
+        transition: bottom 0.3s ease-out, right 0.3s ease-out;
     }
 
-    #map.sidebar-active {
-        height: 50%;
+    .sidebar-open .leaflet-bottom.leaflet-left,
+    .sidebar-open .leaflet-bottom.leaflet-right {
+        bottom: calc(10px + var(--sidebar-height-mobile));
     }
+}
+
+@media (min-width: 992px) {
+    .sidebar-open .leaflet-top.leaflet-right,
+    .sidebar-open .leaflet-bottom.leaflet-right {
+        right: calc(10px + var(--sidebar-width-desktop));
+    }
+}
+
+.leaflet-top.leaflet-right,
+.leaflet-bottom.leaflet-right {
+    transition: right 0.3s ease-out;
 }
 
 @media (max-width: 600px) {
@@ -173,7 +180,6 @@ body {
 
 .card {
     background-color: var(--panel-bg);
-    border: 1px solid var(--border-color);
     border-radius: 12px;
     margin: 15px;
     box-shadow: 0 4px 12px var(--shadow-color);
@@ -192,7 +198,7 @@ body {
 
 .card-title {
     font-size: 1.3em;
-    color: #2c3e50;
+    color: rgb(211, 218, 217);
     margin-bottom: 12px;
     border-bottom: 1px solid var(--border-color);
     padding-bottom: 8px;
@@ -208,7 +214,7 @@ p.f-location,
 .f-meteo,
 .f-extra {
     font-size: 1.05em;
-    color: var(--text-color);
+    color: rgb(211, 218, 217);
     margin-bottom: 10px;
     line-height: 1.5;
     margin-block-start: 0%;
@@ -222,7 +228,7 @@ p.f-location,
     align-items: center;
     gap: 8px;
     font-size: 1.05em;
-    color: var(--text-color);
+    color: rgb(211, 218, 217);
     line-height: 1.5;
 }
 
@@ -252,7 +258,7 @@ p.f-location,
 .assets-nr {
     font-size: 1.2em;
     font-weight: 600;
-    color: #495057;
+    color: rgb(211, 218, 217);
     margin-right: 20px;
 }
 
