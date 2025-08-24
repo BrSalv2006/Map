@@ -411,13 +411,11 @@ function addFireMarker(fire, map, fireImportanceData) {
 
     if (lat && lng && status) {
         const marker = L.marker([lat, lng]);
-
         const layerIndex = getLayerIndexByStatus(status);
+        const isActive = window.location.href.match(/\?fogo\=(\d+)/);
 
         marker.properties = {};
         marker.properties.fire = fire;
-
-        const isActive = window.location.href.match(/\?fogo\=(\d+)/)[1];
 
         let iconHtml = '<i class="dot status-';
         if (fire.important && [7, 8, 9].includes(fire.statusCode)) {
@@ -428,9 +426,11 @@ function addFireMarker(fire, map, fireImportanceData) {
             iconHtml += fire.statusCode;
         }
 
-        if (isActive && isActive === fire.id) {
-            iconHtml += ' dot-active';
-            map.setView([lat, lng], 10);
+        if (isActive && isActive.length === 2) {
+            if (isActive[1] == fireId) {
+                iconHtml += ' dot-active';
+                map.setView([lat, lng], 10);
+            }
         }
 
         iconHtml += `" id="${fire.id}"></i>`;
@@ -452,7 +452,7 @@ function addFireMarker(fire, map, fireImportanceData) {
             const previouslyActiveIcon = document.querySelector('.dot-active');
 
             if (previouslyActiveIcon) {
-                changeElementSizeById(previouslyActiveIcon.id, (parseFloat(previouslyActiveIcon.style.height) - 48));
+                changeElementSizeById(previouslyActiveIcon.id, (parseFloat(previouslyActiveIcon.style.height) - 48 * baseSize));
                 previouslyActiveIcon.classList.remove('dot-active');
             }
 
@@ -477,7 +477,6 @@ function addFireMarker(fire, map, fireImportanceData) {
                 document.getElementById('map').style.width = '75%';
             }
 
-            //locationText += ` <a href="https://fogos.pt/fogo/${fire.id}/detalhe">Mais detalhes</a>`;
             document.querySelector('.f-local').innerHTML = locationText;
             document.querySelector('.f-man').textContent = fire.man;
             document.querySelector('.f-aerial').textContent = fire.aerial;
