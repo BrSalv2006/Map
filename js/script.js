@@ -69,8 +69,6 @@ function initializeMap() {
     ]);
 
     map.on('click', () => {
-        window.history.pushState('obj', 'Fogos.pt', '/');
-
         const previouslyActiveIcon = document.querySelector('.dot-active');
         if (previouslyActiveIcon) {
             changeElementSizeById(previouslyActiveIcon.id, (parseFloat(previouslyActiveIcon.style.height) - 48) * baseSize);
@@ -80,12 +78,8 @@ function initializeMap() {
 
         document.getElementById('map').style.width = '100%';
         document.querySelector('.sidebar').classList.remove('active');
+        window.history.pushState('fogo', '', window.location.origin);
     });
-
-    const res = window.location.pathname.match(/^\/fogo\/(\d+)/);
-    if (res && res.length === 2) {
-        plot(res[1]);
-    }
 }
 
 function resetOverlays() {
@@ -483,7 +477,7 @@ function addFireMarker(fire, map, fireImportanceData) {
                 document.getElementById('map').style.width = '75%';
             }
 
-            locationText += ` <a href="/?fogo=${fire.id}/detalhe">Mais detalhes</a>`;
+            //locationText += ` <a href="https://fogos.pt/fogo/${fire.id}/detalhe">Mais detalhes</a>`;
             document.querySelector('.f-local').innerHTML = locationText;
             document.querySelector('.f-man').textContent = fire.man;
             document.querySelector('.f-aerial').textContent = fire.aerial;
@@ -493,7 +487,7 @@ function addFireMarker(fire, map, fireImportanceData) {
             document.querySelector('.f-update').textContent = momentDate;
             document.querySelector('.f-start').textContent = `${fire.date} ${fire.hour}`;
 
-            window.history.pushState('obj', 'newtitle', `?fogo=${fire.id}`);
+            window.history.pushState('fogo', '', `?fogo=${fire.id}`);
             fireStatus(fire.id);
             plot(fire.id);
             danger(fire.id);
@@ -709,11 +703,11 @@ function setupWorker() {
             }
 
             const fireLayers = {
-                'Despacho': fogosLayers[3],
-                'Despacho de 1º Alerta': fogosLayers[4],
-                'Chegada ao TO': fogosLayers[6],
-                'Em Curso': fogosLayers[5],
-                'Em Resolução': fogosLayers[7],
+                'Despacho': fogosLayers[3].addTo(map),
+                'Despacho de 1º Alerta': fogosLayers[4].addTo(map),
+                'Chegada ao TO': fogosLayers[6].addTo(map),
+                'Em Curso': fogosLayers[5].addTo(map),
+                'Em Resolução': fogosLayers[7].addTo(map),
                 'Conclusão': fogosLayers[8],
                 'Vigilância': fogosLayers[9],
                 'Encerrada': fogosLayers[10],
@@ -727,18 +721,14 @@ function setupWorker() {
                 position: 'topright'
             }).addTo(map);
 
-            const res = window.location.pathname.match(/^\/?fogo=(\d+)/);
+            const res = window.location.href.match(/\?fogo\=(\d+)/);
             if (res && res.length === 2) {
                 const fireIdFromUrl = res[1];
                 const fireElement = document.getElementById(fireIdFromUrl);
                 if (fireElement) {
-                    const fireMarker = fireElement.parentElement.leaflet_marker;
-                    if (fireMarker) {
-                        fireMarker.fire('click');
-                    }
+                    fireElement.click();
                 }
             }
-
 
         } else if (type === 'error') {
             const errorMessage = document.createElement('div');
