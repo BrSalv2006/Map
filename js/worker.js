@@ -50,7 +50,7 @@ async function fetchFireData(baseParams, satelliteType) {
 }
 
 function processFirePoints(fireFeatures, boundaryGeometry) {
-    let finalData = { points: [], areas: null };
+    let satelliteData = { points: [], areas: null };
     fireFeatures.forEach(f => {
         const props = f.properties;
         const date = new Date(props.ACQ_DATE || props.acq_time);
@@ -84,10 +84,10 @@ function processFirePoints(fireFeatures, boundaryGeometry) {
             pointInsideBoundary = turf.booleanPointInPolygon(firePoint, boundaryGeometry);
         }
         if (pointInsideBoundary) {
-            finalData.points.push(firePoint);
+            satelliteData.points.push(firePoint);
         }
     });
-    return finalData;
+    return satelliteData;
 }
 
 function calculateBurntAreas(satelliteData) {
