@@ -78,7 +78,7 @@ function initializeMap() {
 
         document.getElementById('map').style.width = '100%';
         document.querySelector('.sidebar').classList.remove('active');
-        window.history.pushState('fogo', '', window.location.origin);
+        window.history.pushState('fogo', '', window.location.href.split('?')[0]);
     });
 }
 
@@ -417,7 +417,7 @@ function addFireMarker(fire, map, fireImportanceData) {
         marker.properties = {};
         marker.properties.fire = fire;
 
-        const isActive = window.location.pathname.split('/')[2];
+        const isActive = window.location.href.match(/\?fogo\=(\d+)/)[1];
 
         let iconHtml = '<i class="dot status-';
         if (fire.important && [7, 8, 9].includes(fire.statusCode)) {
