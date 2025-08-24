@@ -525,8 +525,6 @@
                     detailsChart.destroy();
                 }
 
-                Chart.defaults.color = '#d3dad9ff';
-
                 detailsChart = new Chart(ctx, {
                     type: 'line',
                     data: {

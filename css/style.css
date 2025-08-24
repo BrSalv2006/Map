@@ -1,5 +1,5 @@
 :root {
-    --panel-bg: rgb(55, 53, 62);
+    --panel-bg: #ffffff;
     --text-color: #333;
     --border-color: #e0e0e0;
     --shadow-color: rgba(0, 0, 0, 0.1);
@@ -10,7 +10,6 @@
     --card-hover-shadow: rgba(0, 0, 0, 0.15);
     --sidebar-width-desktop: 350px;
     --sidebar-height-mobile: 50%;
-    color-scheme: dark;
 }
 
 html,
@@ -115,7 +114,6 @@ body {
     width: var(--sidebar-width-desktop);
     height: 100%;
     background-color: transparent;
-    color: rgb(211, 218, 217);
     z-index: 1000;
     overflow-y: auto;
     transition: transform 0.3s ease-out;
@@ -199,7 +197,7 @@ body {
 
 .card-title {
     font-size: 1.3em;
-    color: rgb(211, 218, 217);
+    color: #2c3e50;
     margin-bottom: 12px;
     border-bottom: 1px solid var(--border-color);
     padding-bottom: 8px;
@@ -215,7 +213,7 @@ p.f-location,
 .f-meteo,
 .f-extra {
     font-size: 1.05em;
-    color: rgb(211, 218, 217);
+    color: var(--text-color);
     margin-bottom: 10px;
     line-height: 1.5;
     margin-block-start: 0%;
@@ -229,7 +227,7 @@ p.f-location,
     align-items: center;
     gap: 8px;
     font-size: 1.05em;
-    color: rgb(211, 218, 217);
+    color: var(--text-color);
     line-height: 1.5;
 }
 
@@ -259,7 +257,7 @@ p.f-location,
 .assets-nr {
     font-size: 1.2em;
     font-weight: 600;
-    color: rgb(211, 218, 217);
+    color: #495057;
     margin-right: 20px;
 }
 
