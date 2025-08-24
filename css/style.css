@@ -277,6 +277,22 @@ canvas#myChart {
     background-position: center;
 }
 
+#status {
+    border-left: 2px solid #bdbdbd;
+}
+
+.status-hour {
+    margin-block-start: 0%;
+    margin-block-end: 0%;
+    margin-left: 1em;
+}
+
+.status-label {
+    margin-block-start: 0%;
+    margin-block-end: 1em;
+    margin-left: 1em;
+}
+
 .dot.status-99,
 .dot.status-important,
 .dot.status-99-r,
@@ -374,6 +390,14 @@ canvas#myChart {
 }
 
 .extra.active {
+    display: block;
+}
+
+.danger {
+    display: none;
+}
+
+.danger.active {
     display: block;
 }
 

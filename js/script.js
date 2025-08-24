@@ -587,7 +587,16 @@
     async function danger(id) {
         try {
             const response = await fetch(`https://fogos.pt/views/risk/${id}`);
-            document.querySelector('.f-danger').innerHTML = await response.text();
+            const data = await response.text();
+            const fDanger = document.querySelector('.f-danger');
+            const dangerRow = document.querySelector('.row.danger');
+            if (data && data.includes("active")) {
+                fDanger.innerHTML = data;
+                dangerRow.classList.add('active');
+            } else {
+                fDanger.innerHTML = '';
+                dangerRow.classList.remove('active');
+            }
         } catch (error) {
             console.error('Error fetching danger info:', error);
         }
@@ -608,7 +617,7 @@
             const data = await response.text();
             const fExtra = document.querySelector('.f-extra');
             const extraRow = document.querySelector('.row.extra');
-            if (data && data.trim().length !== 0) {
+            if (data && data.trim().length > 2) {
                 fExtra.innerHTML = data;
                 extraRow.classList.add('active');
             } else {
