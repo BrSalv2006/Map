@@ -206,7 +206,6 @@ p.f-nature,
 p.f-location,
 .f-status,
 .f-meteo,
-.f-danger,
 .f-extra {
     font-size: 1.05em;
     color: var(--text-color);
@@ -214,6 +213,22 @@ p.f-location,
     line-height: 1.5;
     margin-block-start: 0%;
     margin-left: 1rem;
+}
+
+.f-danger {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    font-size: 1.05em;
+    color: var(--text-color);
+    line-height: 1.5;
+}
+
+.f-danger li {
+    display: inline;
+    white-space: nowrap;
 }
 
 .assets {
@@ -362,17 +377,7 @@ canvas#myChart {
     display: block;
 }
 
-.f-location a {
-    color: #007bff;
-    text-decoration: none;
-    font-weight: 500;
-    transition: color 0.2s ease-in-out;
-}
-
-.f-location a:hover {
-    color: #0056b3;
-}
-
+.f-location a,
 .f-local a {
     color: #007bff;
     text-decoration: none;
@@ -380,6 +385,7 @@ canvas#myChart {
     transition: color 0.2s ease-in-out;
 }
 
+.f-location a:hover,
 .f-local a:hover {
     color: #0056b3;
 }
@@ -388,12 +394,14 @@ canvas#myChart {
     margin: 0 0 1rem;
     color: #fff;
     text-transform: uppercase;
+    padding-inline-start: 0px;
+    margin-block-start: 0%;
+    margin-block-end: 0%;
 }
 
 .fire-status li {
     padding: 10px 6px;
     border-radius: 3px;
-    -webkit-transition: width 0.3s;
     transition: width 0.3s;
 }
 

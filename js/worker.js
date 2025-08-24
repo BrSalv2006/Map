@@ -3,15 +3,15 @@ importScripts('https://unpkg.com/@turf/turf/turf.min.js');
 let workerPortugalGeometry;
 let workerConcelhosGeoJSON;
 
-var importanceFireData = {
+const importanceFireData = {
     number: 0,
     topImportance: 0,
     average: 0
 };
 
 function calculateImportanceValue(data) {
-    var date = new Date().getHours();
-    var importance;
+    const date = new Date().getHours();
+    let importance;
 
     if (date >= 20 || date <= 9) {
         importance = data.man * 1.5 + data.terrain * 4.5;
@@ -33,9 +33,20 @@ async function fetchFireData(baseParams, satelliteType) {
         modis: 'https://services9.arcgis.com/RHVPKKiFTONKtxq3/ArcGIS/rest/services/MODIS_Thermal_v1/FeatureServer/0/query',
         viirs: 'https://services9.arcgis.com/RHVPKKiFTONKtxq3/arcgis/rest/services/Satellite_VIIRS_Thermal_Hotspots_and_Fire_Activity/FeatureServer/0/query'
     };
-    const response = await fetch(`${apiEndpoints[satelliteType]}?${new URLSearchParams(baseParams)}`);
-    const data = await response.json();
-    return data && data.features ? data.features : [];
+    try {
+        const response = await fetch(`${apiEndpoints[satelliteType]}?${new URLSearchParams(baseParams)}`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        return data && data.features ? data.features : [];
+    } catch (error) {
+        self.postMessage({
+            type: 'error',
+            message: `Failed to fetch ${satelliteType} data: ${error.message}`
+        });
+        return [];
+    }
 }
 
 function processFirePoints(fireFeatures, boundaryGeometry) {
@@ -68,24 +79,24 @@ function processFirePoints(fireFeatures, boundaryGeometry) {
             frp: props.FRP || props.frp,
         };
         const firePoint = turf.point(f.geometry.coordinates, properties);
-        let assignedCountry = 'Unknown';
-        let assignedContinent = 'Unknown';
         let pointInsideBoundary = true;
         if (boundaryGeometry) {
             pointInsideBoundary = turf.booleanPointInPolygon(firePoint, boundaryGeometry);
-            if (pointInsideBoundary) {
-                assignedCountry = 'Portugal';
-                assignedContinent = 'Europe';
-            }
         }
         if (pointInsideBoundary) {
-            firePoint.properties.country = assignedCountry;
-            firePoint.properties.continent = assignedContinent;
-            firePoint.properties.location = assignedCountry;
-            const { continent, country } = firePoint.properties;
+            firePoint.properties.country = 'Portugal';
+            firePoint.properties.continent = 'Europe';
+            firePoint.properties.location = 'Portugal';
+            const {
+                continent,
+                country
+            } = firePoint.properties;
             if (!finalData[continent]) finalData[continent] = {};
             if (!finalData[continent][country]) {
-                finalData[continent][country] = { points: [], areas: null };
+                finalData[continent][country] = {
+                    points: [],
+                    areas: null
+                };
             }
             finalData[continent][country].points.push(firePoint);
         }
@@ -142,12 +153,18 @@ function calculateBurntAreas(finalData) {
 
 function getColor(d) {
     switch (d) {
-        case 1: return '#509e2f';
-        case 2: return '#ffe900';
-        case 3: return '#e87722';
-        case 4: return '#cb333b';
-        case 5: return '#6f263d';
-        default: return 'rgb(255, 255, 255)';
+        case 1:
+            return '#509e2f';
+        case 2:
+            return '#ffe900';
+        case 3:
+            return '#e87722';
+        case 4:
+            return '#cb333b';
+        case 5:
+            return '#6f263d';
+        default:
+            return 'rgb(255, 255, 255)';
     }
 }
 
@@ -159,7 +176,10 @@ async function fetchRiskData(url) {
         }
         return await response.json();
     } catch (error) {
-        return { success: false, message: "Failed to fetch risk data." };
+        return {
+            success: false,
+            message: `Failed to fetch risk data: ${error.message}`
+        };
     }
 }
 
@@ -172,12 +192,17 @@ self.onmessage = async function (e) {
 
     try {
         if (type === 'initData') {
-            self.postMessage({ type: 'progress', message: 'Loading geographical data...' });
-            let responsePortugal = await fetch(url + '/json/portugal.json');
+            self.postMessage({
+                type: 'progress',
+                message: 'Loading geographical data...'
+            });
+            const responsePortugal = await fetch(`${url}/json/portugal.json`);
             workerPortugalGeometry = await responsePortugal.json();
-            let responseConcelhos = await fetch(url + '/json/concelhos.json');
+            const responseConcelhos = await fetch(`${url}/json/concelhos.json`);
             workerConcelhosGeoJSON = await responseConcelhos.json();
-            self.postMessage({ type: 'initDataComplete' });
+            self.postMessage({
+                type: 'initDataComplete'
+            });
         } else if (type === 'satelliteData') {
             self.postMessage({
                 type: 'progress',
@@ -185,7 +210,10 @@ self.onmessage = async function (e) {
             });
 
             if (!workerPortugalGeometry || !workerPortugalGeometry.geometries[0]) {
-                self.postMessage({ type: 'error', message: "Portugal geometry not loaded. Cannot fetch satellite data." });
+                self.postMessage({
+                    type: 'error',
+                    message: "Portugal geometry not loaded. Cannot fetch satellite data."
+                });
                 return;
             }
             const featureGeometry = turf.feature(workerPortugalGeometry.geometries[0]);
@@ -212,26 +240,44 @@ self.onmessage = async function (e) {
                 f: 'geojson'
             };
             const satelliteLayers = {};
-            self.postMessage({ type: 'progress', message: 'Fetching MODIS data...' });
+            self.postMessage({
+                type: 'progress',
+                message: 'Fetching MODIS data...'
+            });
             const modisFeatures = await fetchFireData(baseParams, 'modis');
             if (modisFeatures.length > 0) {
-                self.postMessage({ type: 'progress', message: 'Processing MODIS data...' });
+                self.postMessage({
+                    type: 'progress',
+                    message: 'Processing MODIS data...'
+                });
                 const processedModisData = processFirePoints(modisFeatures, featureGeometry);
                 calculateBurntAreas(processedModisData);
                 satelliteLayers.modis = processedModisData;
             } else {
-                self.postMessage({ type: 'progress', message: "No recent MODIS data found." });
+                self.postMessage({
+                    type: 'progress',
+                    message: "No recent MODIS data found."
+                });
                 satelliteLayers.modis = null;
             }
-            self.postMessage({ type: 'progress', message: 'Fetching VIIRS data...' });
+            self.postMessage({
+                type: 'progress',
+                message: 'Fetching VIIRS data...'
+            });
             const viirsFeatures = await fetchFireData(baseParams, 'viirs');
             if (viirsFeatures.length > 0) {
-                self.postMessage({ type: 'progress', message: 'Processing VIIRS data...' });
+                self.postMessage({
+                    type: 'progress',
+                    message: 'Processing VIIRS data...'
+                });
                 const processedViirsData = processFirePoints(viirsFeatures, featureGeometry);
                 calculateBurntAreas(processedViirsData);
                 satelliteLayers.viirs = processedViirsData;
             } else {
-                self.postMessage({ type: 'progress', message: "No recent VIIRS data found." });
+                self.postMessage({
+                    type: 'progress',
+                    message: "No recent VIIRS data found."
+                });
                 satelliteLayers.viirs = null;
             }
             if (!satelliteLayers.modis && !satelliteLayers.viirs) {
@@ -247,18 +293,24 @@ self.onmessage = async function (e) {
             }
         } else if (type === 'riskData') {
             if (!workerConcelhosGeoJSON) {
-                self.postMessage({ type: 'error', message: "Concelhos GeoJSON not loaded. Cannot add risk layers." });
+                self.postMessage({
+                    type: 'error',
+                    message: "Concelhos GeoJSON not loaded. Cannot add risk layers."
+                });
                 return;
             }
             const riskLayers = {};
-            self.postMessage({ type: 'progress', message: 'Fetching Risco data...' });
+            self.postMessage({
+                type: 'progress',
+                message: 'Fetching Risco data...'
+            });
             const riskUrls = [
                 'https://api-dev.fogos.pt/v1/risk-today',
                 'https://api-dev.fogos.pt/v1/risk-tomorrow',
                 'https://api-dev.fogos.pt/v1/risk-after'
             ];
-            for (const url of riskUrls) {
-                const dataResponse = await fetchRiskData(url);
+            for (const riskUrl of riskUrls) {
+                const dataResponse = await fetchRiskData(riskUrl);
                 if (dataResponse.success) {
                     const date = new Date(dataResponse.data.dataPrev);
                     const geoJson = {
@@ -277,7 +329,10 @@ self.onmessage = async function (e) {
                     };
                     riskLayers[`Risco ${date.toLocaleDateString()}`] = geoJson;
                 } else {
-                    self.postMessage({ type: 'error', message: `Failed to load risk data from ${url}: ${dataResponse.message}` });
+                    self.postMessage({
+                        type: 'error',
+                        message: `Failed to load risk data from ${riskUrl}: ${dataResponse.message}`
+                    });
                 }
             }
             if (Object.keys(riskLayers).length > 0) {
@@ -292,7 +347,10 @@ self.onmessage = async function (e) {
                 });
             }
         } else if (type === 'firesData') {
-            self.postMessage({ type: 'progress', message: 'Fetching new fires data...' });
+            self.postMessage({
+                type: 'progress',
+                message: 'Fetching new fires data...'
+            });
             try {
                 const response = await fetch('https://api-dev.fogos.pt/new/fires');
                 if (!response.ok) {
@@ -305,12 +363,22 @@ self.onmessage = async function (e) {
                         calculateImportanceValue(fire);
                         return fire;
                     });
-                    self.postMessage({ type: 'firesResult', data: processedFires, fireImportanceData: importanceFireData });
+                    self.postMessage({
+                        type: 'firesResult',
+                        data: processedFires,
+                        fireImportanceData: importanceFireData
+                    });
                 } else {
-                    self.postMessage({ type: 'error', message: `API call to fogos.pt for new fires was not successful: ${data.message}` });
+                    self.postMessage({
+                        type: 'error',
+                        message: `API call to fogos.pt for new fires was not successful: ${data.message}`
+                    });
                 }
             } catch (error) {
-                self.postMessage({ type: 'error', message: `Error fetching new fires data: ${error.message}` });
+                self.postMessage({
+                    type: 'error',
+                    message: `Error fetching new fires data: ${error.message}`
+                });
             }
         }
     } catch (err) {
