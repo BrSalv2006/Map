@@ -553,7 +553,7 @@
                         }]
                     },
                     color: '#d3dad9ff'
-                    
+
                 });
                 canvas.style.display = 'block';
             } else {

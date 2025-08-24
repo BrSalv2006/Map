@@ -130,7 +130,7 @@ body {
 }
 
 @media (max-width: 767px) {
-        .sidebar {
+    .sidebar {
         background: transparent;
         width: 100%;
         height: var(--sidebar-height-mobile);
@@ -156,6 +156,7 @@ body {
 }
 
 @media (min-width: 992px) {
+
     .sidebar-open .leaflet-top.leaflet-right,
     .sidebar-open .leaflet-bottom.leaflet-right {
         right: calc(10px + var(--sidebar-width-desktop));
