@@ -99,34 +99,29 @@
         });
         const areas = L.featureGroup();
 
-        for (const continent in satelliteData) {
-            for (const country in satelliteData[continent]) {
-                const countryData = satelliteData[continent][country];
-                countryData.points.forEach(point => {
-                    const marker = L.marker([point.geometry.coordinates[1], point.geometry.coordinates[0]]);
-                    const p = point.properties;
-                    const popupContent = `<b>Localização:</b> ${p.location}<br><hr style="margin: 4px 0;"><b>Brilho:</b> ${p.brightness}K<br><b>Data, Hora:</b> ${p.acq_date}<br><b>Satélite:</b> ${p.satellite}<br><b>Confiança:</b> ${p.confidence}<br><b>Dia/Noite:</b> ${p.daynight}<br><b>PRF:</b> ${p.frp}MW`;
-                    marker.bindPopup(popupContent);
-                    hotspots.addLayer(marker);
-                });
+        satelliteData.points.forEach(point => {
+            const marker = L.marker([point.geometry.coordinates[1], point.geometry.coordinates[0]]);
+            const p = point.properties;
+            const popupContent = `<b>Brilho:</b> ${p.brightness}K<br><b>Data, Hora:</b> ${p.acq_date}<br><b>Satélite:</b> ${p.satellite}<br><b>Confiança:</b> ${p.confidence}<br><b>Dia/Noite:</b> ${p.daynight}<br><b>PRF:</b> ${p.frp}MW`;
+            marker.bindPopup(popupContent);
+            hotspots.addLayer(marker);
+        });
 
-                if (countryData.areas && countryData.areas.features.length > 0) {
-                    const areaLayer = L.geoJSON(countryData.areas, {
-                        style: {
-                            color: "#ff0000",
-                            weight: 2,
-                            opacity: 0.8,
-                            fillColor: "#ff0000",
-                            fillOpacity: 0.2
-                        },
-                        onEachFeature: (feature, layer) => {
-                            const area_sq_km = turf.area(feature) / 1000000;
-                            layer.bindPopup(`Burnt Area: ${Math.round(area_sq_km)} KM²`);
-                        }
-                    });
-                    areas.addLayer(areaLayer);
+        if (satelliteData.areas && satelliteData.areas.features.length > 0) {
+            const areaLayer = L.geoJSON(satelliteData.areas, {
+                style: {
+                    color: "#ff0000",
+                    weight: 2,
+                    opacity: 0.8,
+                    fillColor: "#ff0000",
+                    fillOpacity: 0.2
+                },
+                onEachFeature: (feature, layer) => {
+                    const area_sq_km = turf.area(feature) / 1000000;
+                    layer.bindPopup(`Burnt Area: ${Math.round(area_sq_km)} KM²`);
                 }
-            }
+            });
+            areas.addLayer(areaLayer);
         }
         return {
             hotspots,

@@ -50,7 +50,7 @@ async function fetchFireData(baseParams, satelliteType) {
 }
 
 function processFirePoints(fireFeatures, boundaryGeometry) {
-    const finalData = {};
+    let finalData = { points: [], areas: null };
     fireFeatures.forEach(f => {
         const props = f.properties;
         const date = new Date(props.ACQ_DATE || props.acq_time);
@@ -84,70 +84,51 @@ function processFirePoints(fireFeatures, boundaryGeometry) {
             pointInsideBoundary = turf.booleanPointInPolygon(firePoint, boundaryGeometry);
         }
         if (pointInsideBoundary) {
-            firePoint.properties.country = 'Portugal';
-            firePoint.properties.continent = 'Europe';
-            firePoint.properties.location = 'Portugal';
-            const {
-                continent,
-                country
-            } = firePoint.properties;
-            if (!finalData[continent]) finalData[continent] = {};
-            if (!finalData[continent][country]) {
-                finalData[continent][country] = {
-                    points: [],
-                    areas: null
-                };
-            }
-            finalData[continent][country].points.push(firePoint);
+            finalData.points.push(firePoint);
         }
     });
     return finalData;
 }
 
-function calculateBurntAreas(finalData) {
-    for (const continent in finalData) {
-        for (const country in finalData[continent]) {
-            const countryData = finalData[continent][country];
-            if (countryData.points.length < 3) continue;
-            const pointsForClustering = turf.featureCollection(countryData.points);
-            const clustered = turf.clustersDbscan(pointsForClustering, 15, {
-                minPoints: 3
-            });
-            const clusters = {};
-            turf.featureEach(clustered, (feature) => {
-                const clusterId = feature.properties.cluster;
-                if (clusterId === undefined) return;
-                if (!clusters[clusterId]) clusters[clusterId] = [];
-                clusters[clusterId].push(feature);
-            });
-            const areaPolygons = [];
-            for (const clusterId in clusters) {
-                const clusterPoints = clusters[clusterId];
-                if (clusterPoints.length > 0) {
-                    const buffers = clusterPoints.map(point => turf.buffer(point, 1, {
-                        units: 'kilometers'
-                    }));
+function calculateBurntAreas(satelliteData) {
+    if (satelliteData.points.length < 3);
+    const pointsForClustering = turf.featureCollection(satelliteData.points);
+    const clustered = turf.clustersDbscan(pointsForClustering, 15, {
+        minPoints: 3
+    });
+    const clusters = {};
+    turf.featureEach(clustered, (feature) => {
+        const clusterId = feature.properties.cluster;
+        if (clusterId === undefined) return;
+        if (!clusters[clusterId]) clusters[clusterId] = [];
+        clusters[clusterId].push(feature);
+    });
+    const areaPolygons = [];
+    for (const clusterId in clusters) {
+        const clusterPoints = clusters[clusterId];
+        if (clusterPoints.length > 0) {
+            const buffers = clusterPoints.map(point => turf.buffer(point, 1, {
+                units: 'kilometers'
+            }));
 
-                    let mergedArea = turf.union(turf.featureCollection(buffers));
-                    if (mergedArea) {
-                        let smoothedArea = turf.buffer(mergedArea, 1, {
-                            units: 'kilometers'
-                        });
-                        if (smoothedArea) {
-                            smoothedArea = turf.buffer(smoothedArea, -1, {
-                                units: 'kilometers'
-                            });
-                        }
-                        if (smoothedArea) {
-                            areaPolygons.push(smoothedArea);
-                        }
-                    }
+            let mergedArea = turf.union(turf.featureCollection(buffers));
+            if (mergedArea) {
+                let smoothedArea = turf.buffer(mergedArea, 1, {
+                    units: 'kilometers'
+                });
+                if (smoothedArea) {
+                    smoothedArea = turf.buffer(smoothedArea, -1, {
+                        units: 'kilometers'
+                    });
+                }
+                if (smoothedArea) {
+                    areaPolygons.push(smoothedArea);
                 }
             }
-            if (areaPolygons.length > 0) {
-                countryData.areas = turf.featureCollection(areaPolygons);
-            }
         }
+    }
+    if (areaPolygons.length > 0) {
+        satelliteData.areas = turf.featureCollection(areaPolygons);
     }
 }
 
