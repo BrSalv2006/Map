@@ -3,6 +3,31 @@ importScripts('https://unpkg.com/@turf/turf/turf.min.js');
 let workerPortugalGeometry;
 let workerConcelhosGeoJSON;
 
+var importanceFireData = {
+    number: 0,
+    topImportance: 0,
+    average: 0
+};
+
+function calculateImportanceValue(data) {
+    var date = new Date().getHours();
+    var importance;
+
+    if (date >= 20 || date <= 9) {
+        importance = data.man * 1.5 + data.terrain * 4.5;
+    } else {
+        importance = data.man * 1 + data.terrain * 2.5 + data.aerial * 10;
+    }
+
+    importanceFireData.number += 1;
+    if (importanceFireData.topImportance < importance) {
+        importanceFireData.topImportance = importance;
+    }
+
+    importanceFireData.average = (importanceFireData.average * (importanceFireData.number - 1) + importance) / (importanceFireData.number);
+    data.importance = importance;
+}
+
 async function fetchFireData(baseParams, satelliteType) {
     const apiEndpoints = {
         modis: 'https://services9.arcgis.com/RHVPKKiFTONKtxq3/ArcGIS/rest/services/MODIS_Thermal_v1/FeatureServer/0/query',
@@ -148,19 +173,19 @@ self.onmessage = async function (e) {
     try {
         if (type === 'initData') {
             self.postMessage({ type: 'progress', message: 'Loading geographical data...' });
-            let responsePortugal = await fetch(url + 'json/portugal.json');
+            let responsePortugal = await fetch(url + '/json/portugal.json');
             workerPortugalGeometry = await responsePortugal.json();
-            let responseConcelhos = await fetch(url + 'json/concelhos.json');
+            let responseConcelhos = await fetch(url + '/json/concelhos.json');
             workerConcelhosGeoJSON = await responseConcelhos.json();
             self.postMessage({ type: 'initDataComplete' });
-        } else if (type === 'fireData') {
+        } else if (type === 'satelliteData') {
             self.postMessage({
                 type: 'progress',
-                message: `Fetching fire data...`
+                message: `Fetching satellite data...`
             });
 
             if (!workerPortugalGeometry || !workerPortugalGeometry.geometries[0]) {
-                self.postMessage({ type: 'error', message: "Portugal geometry not loaded. Cannot fetch fire data." });
+                self.postMessage({ type: 'error', message: "Portugal geometry not loaded. Cannot fetch satellite data." });
                 return;
             }
             const featureGeometry = turf.feature(workerPortugalGeometry.geometries[0]);
@@ -186,38 +211,38 @@ self.onmessage = async function (e) {
                 spatialRel: 'esriSpatialRelIntersects',
                 f: 'geojson'
             };
-            const resultData = {};
-            self.postMessage({ type: 'progress', message: 'Fetching MODIS fire data...' });
+            const satelliteLayers = {};
+            self.postMessage({ type: 'progress', message: 'Fetching MODIS data...' });
             const modisFeatures = await fetchFireData(baseParams, 'modis');
             if (modisFeatures.length > 0) {
                 self.postMessage({ type: 'progress', message: 'Processing MODIS data...' });
                 const processedModisData = processFirePoints(modisFeatures, featureGeometry);
                 calculateBurntAreas(processedModisData);
-                resultData.modis = processedModisData;
+                satelliteLayers.modis = processedModisData;
             } else {
-                self.postMessage({ type: 'progress', message: "No recent MODIS fire data found." });
-                resultData.modis = null;
+                self.postMessage({ type: 'progress', message: "No recent MODIS data found." });
+                satelliteLayers.modis = null;
             }
-            self.postMessage({ type: 'progress', message: 'Fetching VIIRS fire data...' });
+            self.postMessage({ type: 'progress', message: 'Fetching VIIRS data...' });
             const viirsFeatures = await fetchFireData(baseParams, 'viirs');
             if (viirsFeatures.length > 0) {
                 self.postMessage({ type: 'progress', message: 'Processing VIIRS data...' });
                 const processedViirsData = processFirePoints(viirsFeatures, featureGeometry);
                 calculateBurntAreas(processedViirsData);
-                resultData.viirs = processedViirsData;
+                satelliteLayers.viirs = processedViirsData;
             } else {
-                self.postMessage({ type: 'progress', message: "No recent VIIRS fire data found." });
-                resultData.viirs = null;
+                self.postMessage({ type: 'progress', message: "No recent VIIRS data found." });
+                satelliteLayers.viirs = null;
             }
-            if (!resultData.modis && !resultData.viirs) {
+            if (!satelliteLayers.modis && !satelliteLayers.viirs) {
                 self.postMessage({
                     type: 'error',
-                    message: "No recent fire data found."
+                    message: "No recent data found."
                 });
             } else {
                 self.postMessage({
-                    type: 'result',
-                    data: resultData
+                    type: 'satelliteResult',
+                    data: satelliteLayers
                 });
             }
         } else if (type === 'riskData') {
@@ -265,6 +290,27 @@ self.onmessage = async function (e) {
                     type: 'error',
                     message: "No risk layers could be loaded."
                 });
+            }
+        } else if (type === 'firesData') {
+            self.postMessage({ type: 'progress', message: 'Fetching new fires data...' });
+            try {
+                const response = await fetch('https://api-dev.fogos.pt/new/fires');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+
+                if (data.success) {
+                    const processedFires = data.data.map(fire => {
+                        calculateImportanceValue(fire);
+                        return fire;
+                    });
+                    self.postMessage({ type: 'firesResult', data: processedFires, fireImportanceData: importanceFireData });
+                } else {
+                    self.postMessage({ type: 'error', message: `API call to fogos.pt for new fires was not successful: ${data.message}` });
+                }
+            } catch (error) {
+                self.postMessage({ type: 'error', message: `Error fetching new fires data: ${error.message}` });
             }
         }
     } catch (err) {

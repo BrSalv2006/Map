@@ -1,6 +1,7 @@
 let map;
 let baseLayerControl;
-let fireDataLayerControl;
+let fireLayerControl;
+let satelliteLayerControl;
 let riskLayerControl;
 let weatherLayerControl;
 let currentWorker = null;
@@ -9,11 +10,13 @@ let currentRiskLegend = null;
 let currentWeatherLegend = null;
 let weatherLegendsData = {};
 let loader = document.getElementById('loader');
-
-let fireDataProcessed = false;
+let satelliteDataProcessed = false;
 let riskDataProcessed = false;
 let noneRiskLayer;
 let noneWeatherLayer;
+let fogosLayers = [];
+
+const baseSize = 22;
 
 function initializeMap() {
     map = L.map('map', {
@@ -36,7 +39,12 @@ function initializeMap() {
         position: 'topright',
     });
 
-    fireDataLayerControl = L.control.layers(null, null, {
+    fireLayerControl = L.control.layers(null, null, {
+        collapsed: true,
+        position: 'topright'
+    });
+
+    satelliteLayerControl = L.control.layers(null, null, {
         collapsed: true,
         position: 'topright'
     });
@@ -59,6 +67,12 @@ function initializeMap() {
         [-90, -180],
         [90, 180]
     ]);
+
+    map.on('click', function() {
+        $('.sidebar').removeClass('active');
+        // Reset map width to 100% when sidebar is hidden
+        $('#map').css('width', '100%');
+    });
 }
 
 function resetOverlays() {
@@ -66,20 +80,20 @@ function resetOverlays() {
         if (map.hasLayer(currentOverlays[key])) {
             map.removeLayer(currentOverlays[key]);
         }
-        fireDataLayerControl.removeLayer(currentOverlays[key]);
+        satelliteLayerControl.removeLayer(currentOverlays[key]);
     }
     currentOverlays = {};
 }
 
-function createFireLayers(fireData) {
+function createSatelliteLayers(satelliteData) {
     const hotspots = L.markerClusterGroup({
         maxClusterRadius: 40
     });
     const areas = L.featureGroup();
 
-    for (const continent in fireData) {
-        for (const country in fireData[continent]) {
-            const countryData = fireData[continent][country];
+    for (const continent in satelliteData) {
+        for (const country in satelliteData[continent]) {
+            const countryData = satelliteData[continent][country];
             countryData.points.forEach(point => {
                 const marker = L.marker([point.geometry.coordinates[1], point.geometry.coordinates[0]]);
                 const p = point.properties;
@@ -110,7 +124,7 @@ function createFireLayers(fireData) {
 }
 
 function addOrRemoveControl(control, type) {
-    if ((type === 'fireData' && fireDataProcessed) || (type === 'riskData' && riskDataProcessed)) {
+    if ((type === 'satelliteData' && satelliteDataProcessed) || (type === 'riskData' && riskDataProcessed)) {
         if (!control._map) {
             control.addTo(map);
         }
@@ -119,32 +133,32 @@ function addOrRemoveControl(control, type) {
             map.removeControl(control);
         }
     }
-    if (fireDataProcessed && riskDataProcessed) {
+    if (satelliteDataProcessed && riskDataProcessed) {
         loader.style.display = 'none';
         editBackgroundImages();
     }
 }
 
-function populateMap(data) {
-    loader.innerText = 'Generating map layers...';
+function addSatelliteLayers(data) {
+    loader.innerText = 'Generating satellite layers...';
     resetOverlays();
 
     if (data.modis) {
-        const { hotspots, areas } = createFireLayers(data.modis);
+        const { hotspots, areas } = createSatelliteLayers(data.modis);
         const modisCombinedLayer = L.layerGroup([hotspots, areas]);
-        fireDataLayerControl.addOverlay(modisCombinedLayer, 'MODIS');
+        satelliteLayerControl.addOverlay(modisCombinedLayer, 'MODIS');
         currentOverlays.modis = modisCombinedLayer;
     }
 
     if (data.viirs) {
-        const { hotspots, areas } = createFireLayers(data.viirs);
+        const { hotspots, areas } = createSatelliteLayers(data.viirs);
         const viirsCombinedLayer = L.layerGroup([hotspots, areas]);
-        fireDataLayerControl.addOverlay(viirsCombinedLayer, 'VIIRS');
+        satelliteLayerControl.addOverlay(viirsCombinedLayer, 'VIIRS');
         currentOverlays.viirs = viirsCombinedLayer;
     }
 
-    fireDataProcessed = true;
-    addOrRemoveControl(fireDataLayerControl, 'fireData');
+    satelliteDataProcessed = true;
+    addOrRemoveControl(satelliteLayerControl, 'satelliteData');
 }
 
 function addRiskLegend(map) {
@@ -312,6 +326,338 @@ function addWeatherLayers() {
     }).addTo(map);
 }
 
+function getLayerIndexByStatus(status) {
+    switch (status) {
+        case 'Despacho':
+            return 3;
+        case 'Despacho de 1º Alerta':
+            return 4;
+        case 'Em Curso':
+            return 5;
+        case 'Chegada ao TO':
+            return 6;
+        case 'Em Resolução':
+            return 7;
+        case 'Conclusão':
+            return 8;
+        case 'Vigilância':
+            return 9;
+        case 'Encerrada':
+            return 10;
+        case 'Falso Alarme':
+            return 11;
+        case 'Falso Alerta':
+            return 12;
+        default:
+            return 81;
+    }
+}
+
+function getPonderatedImportanceFactor(importance, statusCode, fireImportanceData) {
+    var importanceSize;
+
+    if (statusCode == 11 || statusCode == 12) {
+        return 0.6;
+    }
+    if (importance > fireImportanceData.average) {
+        var topPercentage = importance / fireImportanceData.topImportance;
+        topPercentage *= 2.3;
+        topPercentage += 0.5;
+
+        var avgPercentage = fireImportanceData.average / importance;
+
+        importanceSize = topPercentage - avgPercentage;
+
+        if (importanceSize > 1.75) {
+            importanceSize = 1.75;
+        }
+
+        if (importanceSize < 1) {
+            importanceSize = 1;
+        }
+    }
+
+    if (importance < fireImportanceData.average) {
+        var avgPercentage = importance / fireImportanceData.average * 0.8;
+        if (avgPercentage < 0.5) {
+            importanceSize = 0.5;
+        } else {
+            importanceSize = avgPercentage;
+        }
+    }
+    return importanceSize;
+}
+
+function changeElementSizeById(id, size) {
+    var markerHtml = document.getElementById(id);
+    markerHtml.style.height = size + 'px';
+    markerHtml.style.width = size + 'px';
+}
+
+function addFireMarker(fire, map, fireImportanceData) {
+    const lat = fire.lat;
+    const lng = fire.lng;
+    const status = fire.status;
+    const fireId = fire.id;
+
+    if (lat && lng && status) {
+        const marker = L.marker([lat, lng]);
+
+        let layerIndex = getLayerIndexByStatus(status);
+
+        marker.properties = {};
+        marker.properties.fire = fire;
+
+        isActive = window.location.pathname.split('/')[2];
+
+        iconHtml = '<i class="dot status-';
+        if (fire.important && [7, 8, 9].includes(fire.statusCode)) {
+            iconHtml += '99-r';
+        } else if (fire.important) {
+            iconHtml += '99';
+        } else {
+            iconHtml += fire.statusCode;
+        }
+
+        if (isActive && isActive === fire.id) {
+            iconHtml += ' active';
+            map.setView(coords, 10);
+        }
+
+        iconHtml += '" id=' + fire.id + '></i>';
+        var sizeFactor = getPonderatedImportanceFactor(fire.importance, fire.statusCode, fireImportanceData);
+        marker.sizeFactor = sizeFactor;
+        var size = sizeFactor * baseSize;
+
+        marker.setIcon(L.divIcon({
+            className: 'count-icon-emergency',
+            html: iconHtml,
+            iconSize: [size, size],
+            forceZIndex: fire.importance
+        }));
+
+
+        marker.id = fireId;
+
+        //if (isActive && isActive === fire.id) {
+        //    changeElementSizeById(fire.id, 48 + sizeFactor);
+        //} else {
+        //    changeElementSizeById(fire.id, size);
+        //}
+
+        marker.on('click', function (e) {
+            var activeIcon = e.target._icon.children[0];
+            var previouslyActiveIcon = document.querySelector('.active');
+
+            if (previouslyActiveIcon) {
+                changeElementSizeById(previouslyActiveIcon.id, (parseFloat(previouslyActiveIcon.style.height) - 48) * baseSize);
+                previouslyActiveIcon.classList.remove('active');
+            }
+
+            changeElementSizeById(marker.id, 48 + marker.sizeFactor);
+            activeIcon.classList.add('active');
+            map.setView(e.latlng, 10);
+
+            var momentDate = new Date(fire.updated.sec * 1000).toLocaleString();
+            
+            var location = '<a href="https://www.google.com/maps/search/' + lat + ',' + lng + '" target="_blank"><i class="far fa-map"></i> ' + lat + ',' + lng + '</a>';
+
+            var locationText = fire.location;
+            if (fire.localidade) {
+                locationText += ' - ' + fire.localidade;
+            }
+
+            $('.sidebar').addClass('active').scrollTop(0);
+            if (window.innerWidth >= 992) {
+                $('#map').css('width', $('.sidebar.active').css('flex-basis') === '25%' ? '75%' : '75%');
+            }
+
+            locationText += ' <a href="/?fogo=' + fire.id + '/detalhe">Mais detalhes</a>';
+            $('.sidebar').addClass('active').scrollTop(0);
+            $('.f-local').html(locationText);
+            $('.f-man').text(fire.man);
+            $('.f-aerial').text(fire.aerial);
+            $('.f-terrain').text(fire.terrain);
+            $('.f-location').html(location);
+            $('.f-nature').text(fire.natureza);
+            $('.f-update').text(momentDate);
+            $('.f-start').text(fire.date + ' ' + fire.hour);
+            $('.click-notification').data('id', fire.id);
+
+            //if (notificationsAuth) {
+            //    $('.notification-container').css({
+            //        'display': 'inline-block'
+            //    });
+            //    let notifyFire = store.get('fire-' + fire.id);
+            //    if (notifyFire) {
+            //        $('.notification-container').find('i').removeClass('far').addClass('fas');
+            //    } else {
+            //        $('.notification-container').find('i').removeClass('fas').addClass('far');
+            //    }
+            //}
+
+
+            window.history.pushState('obj', 'newtitle', '?fogo=' + fire.id);
+            //status(fire.id)
+            //plot(fire.id);
+            danger(fire.id);
+            meteo(fire.id);
+            extra(fire.id);
+            addPageview();
+        });
+        marker.addTo(fogosLayers[layerIndex]);
+    }
+}
+
+let detailsChart;
+
+function plot(id) {
+    var url = 'https://api-dev.fogos.pt/fires/data?id=' + id;
+    $.ajax({
+        url: url,
+        method: 'GET',
+        success: function (data) {
+            if (data.success && data.data.length) {
+                labels = [];
+                var man = [];
+                var terrain = [];
+                var aerial = [];
+                for (d in data.data) {
+                    labels.push(data.data[d].label);
+                    man.push(data.data[d].man);
+                    terrain.push(data.data[d].terrain);
+                    aerial.push(data.data[d].aerial);
+                }
+
+                var ctx = document.getElementById('myChart');
+
+                if (detailsChart)
+                    detailsChart.destroy();
+
+                detailsChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Operacionais',
+                            data: man,
+                            fill: false,
+                            backgroundColor: '#EFC800',
+                            borderColor: '#EFC800'
+                        },
+                        {
+                            label: 'Terrestres',
+                            data: terrain,
+                            fill: false,
+                            backgroundColor: '#6D720B',
+                            borderColor: '#6D720B'
+                        }, {
+                            label: 'Aéreos',
+                            data: aerial,
+                            fill: false,
+                            backgroundColor: '#4E88B2',
+                            borderColor: '#4E88B2'
+                        }
+                        ]
+                    },
+                    options: {
+                        elements: {
+                            line: {
+                                tension: 0 // disables bezier curves
+                            }
+                        },
+                        scales: {
+                            yAxes: [{
+                                ticks: {}
+                            }]
+                        }
+                    }
+                });
+            } else {
+                $('#info').find('canvas').remove();
+                $('#info').append('<p>Não há dados disponiveis</p> ');
+            }
+        }
+    });
+
+}
+
+function status(id) {
+    $('#status').empty();
+    var url = 'https://fogos.pt/views/status/' + id;
+    $.ajax({
+        url: url,
+        method: 'GET',
+        success: function (data) {
+            $('.f-status').html(data);
+        }
+    });
+}
+
+function danger(id) {
+    var url = 'https://fogos.pt/views/risk/' + id;
+    $.ajax({
+        url: url,
+        method: 'GET',
+        success: function (data) {
+            $('.f-danger').html(data);
+        }
+    });
+
+}
+
+function meteo(id) {
+    var url = 'https://fogos.pt/views/meteo/' + id;
+    $.ajax({
+        url: url,
+        method: 'GET',
+        success: function (data) {
+            $('.f-meteo').html(data);
+        }
+    });
+
+}
+
+function extra(id) {
+    var url = 'https://fogos.pt/views/extra/' + id;
+    $.ajax({
+        url: url,
+        method: 'GET',
+        success: function (data) {
+            if (data && data.length !== 0) {
+                $('.f-extra').html(data);
+                $('.extra').addClass('active');
+            } else {
+                $('.extra').removeClass('active');
+            }
+
+        }
+    });
+
+}
+
+function addPageview() {
+    if (window.ga) {
+        if ('ga' in window) {
+            var tracker = window.ga.getAll()[0];
+            if (tracker)
+                tracker.send('pageview');
+        }
+    }
+}
+
+function extend() {
+    for (var o = {}, i = 0; i < arguments.length; i++) {
+        for (var k in arguments[i]) {
+            if (arguments[i].hasOwnProperty(k)) {
+                o[k] = arguments[i][k].constructor === Object ? extend(o[k] || {}, arguments[i][k]) : arguments[i][k];
+            }
+        }
+    }
+    return o;
+}
+
+
 function setupWorker() {
     if (currentWorker) {
         return;
@@ -325,22 +671,26 @@ function setupWorker() {
         const {
             type,
             message,
-            data
+            data,
+            fireImportanceData
         } = e.data;
         if (type === 'progress') {
             loader.innerText = message;
         } else if (type === 'initDataComplete') {
             loader.innerText = 'Geographical data loaded. Fetching fire and risk data...';
             currentWorker.postMessage({
-                type: 'fireData',
+                type: 'satelliteData',
                 dayRange: 1
             });
             currentWorker.postMessage({
                 type: 'riskData'
             });
+            currentWorker.postMessage({
+                type: 'firesData'
+            });
         }
-        else if (type === 'result') {
-            populateMap(data);
+        else if (type === 'satelliteResult') {
+            addSatelliteLayers(data);
         } else if (type === 'riskResult') {
             loader.innerText = 'Adding risk layers...';
             if (riskLayerControl._map !== null) {
@@ -367,6 +717,40 @@ function setupWorker() {
             noneRiskLayer.addTo(map);
             riskDataProcessed = true;
             addOrRemoveControl(riskLayerControl, 'riskData');
+        } else if (type === 'firesResult') {
+            loader.innerText = 'Adding new fires data...';
+
+            const allExpectedLayerIndices = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 80];
+
+            allExpectedLayerIndices.forEach(index => {
+                if (!fogosLayers[index]) {
+                    fogosLayers[index] = L.layerGroup();
+                }
+            });
+
+            for (const fire of data) {
+                addFireMarker(fire, map, fireImportanceData);
+            }
+
+            const fireLayers = {
+                'Despacho': fogosLayers[3],
+                'Despacho de 1º Alerta': fogosLayers[4],
+                'Chegada ao TO': fogosLayers[6],
+                'Em Curso': fogosLayers[5],
+                'Em Resolução': fogosLayers[7],
+                'Conclusão': fogosLayers[8],
+                'Vigilância': fogosLayers[9],
+                'Encerrada': fogosLayers[10],
+                'Falso Alarme': fogosLayers[11],
+                'Falso Alerta': fogosLayers[12]
+            };
+
+
+            fireLayerControl = L.control.layers(null, fireLayers, {
+                collapsed: true,
+                position: 'topright'
+            }).addTo(map);
+
         } else if (type === 'error') {
             const errorMessage = document.createElement('div');
             errorMessage.className = 'error-message';
@@ -374,11 +758,11 @@ function setupWorker() {
             document.body.appendChild(errorMessage);
             setTimeout(() => errorMessage.remove(), 5000);
             if (message.includes("fire data")) {
-                fireDataProcessed = true;
+                satelliteDataProcessed = true;
             } else if (message.includes("risk layers") || message.includes("Concelhos GeoJSON")) {
                 riskDataProcessed = true;
             }
-            if (fireDataProcessed && riskDataProcessed) {
+            if (satelliteDataProcessed && riskDataProcessed) {
                 loader.style.display = 'none';
                 editBackgroundImages();
             }
@@ -392,7 +776,7 @@ function setupWorker() {
         errorMessage.textContent = 'A critical error occurred in the worker. Check the console for details.';
         document.body.appendChild(errorMessage);
         setTimeout(() => errorMessage.remove(), 5000);
-        fireDataProcessed = true;
+        satelliteDataProcessed = true;
         riskDataProcessed = true;
         loader.style.display = 'none';
         editBackgroundImages();
@@ -404,9 +788,9 @@ function editBackgroundImages() {
     baseLayerControls.backgroundImage = "url('img/map.png')";
     baseLayerControls.backgroundSize = "28px";
 
-    let fireDataLayerControls = fireDataLayerControl.getContainer().children[0].style;
-    fireDataLayerControls.backgroundImage = "url('img/satellite.png')";
-    fireDataLayerControls.backgroundSize = "28px";
+    let satelliteLayerControls = satelliteLayerControl.getContainer().children[0].style;
+    satelliteLayerControls.backgroundImage = "url('img/satellite.png')";
+    satelliteLayerControls.backgroundSize = "28px";
 
     let weatherLayerControls = weatherLayerControl.getContainer().children[0].style;
     weatherLayerControls.backgroundImage = "url('img/weather.png')";
@@ -415,13 +799,17 @@ function editBackgroundImages() {
     let riskLayerControls = riskLayerControl.getContainer().children[0].style;
     riskLayerControls.backgroundImage = "url('img/fire_risk.png')";
     riskLayerControls.backgroundSize = "28px";
+
+    let fireLayerControls = fireLayerControl.getContainer().children[0].style;
+    fireLayerControls.backgroundImage = "url('img/fire.png')";
+    fireLayerControls.backgroundSize = "28px";
 }
 
 function setupControls() {
     setupWorker();
     currentWorker.postMessage({
         type: 'initData',
-        url: window.location.href
+        url: window.location.origin
     });
 }
 
@@ -442,6 +830,11 @@ async function loadWeatherLegendsData() {
 }
 
 window.onload = async () => {
+    var res = window.location.pathname.match(/^\/?fogo=\/(\d+)/);
+    if (res && res.length === 2) {
+        plot(res[1]);
+    }
+
     initializeMap();
     addBaseTileLayers();
     addWeatherLayers(map);

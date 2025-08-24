@@ -29,75 +29,11 @@ main {
     height: 100%;
     width: 100%;
     background-color: #f0f0f0;
+    transition: width 0.3s ease-out, height 0.3s ease-out; /* Smooth transition for map width and height */
 }
 
 .leaflet-control-attribution {
     display: none;
-}
-
-.controls-panel {
-    position: absolute;
-    top: 10px;
-    left: 4.5em;
-    z-index: 1000;
-    background: var(--panel-bg);
-    padding: 15px;
-    border-radius: 8px;
-    box-shadow: 0 2px 10px var(--shadow-color);
-    width: 300px;
-    max-height: 90vh;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-    transition: all 0.3s ease;
-}
-
-.controls-panel h1 {
-    font-size: 1.2em;
-    margin: 0 0 5px 0;
-    color: var(--text-color);
-    border-bottom: 1px solid var(--border-color);
-    padding-bottom: 10px;
-}
-
-.control-group {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-}
-
-.control-group label {
-    font-weight: bold;
-    font-size: 0.9em;
-}
-
-.control-group select,
-.control-group input {
-    width: 100%;
-    padding: 8px;
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    box-sizing: border-box;
-}
-
-#country-selector {
-    height: 150px;
-}
-
-.controls-panel button {
-    padding: 10px 15px;
-    background-color: var(--button-bg);
-    color: var(--button-text);
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 1em;
-    transition: background-color 0.2s ease;
-}
-
-.controls-panel button:hover {
-    background-color: var(--button-hover-bg);
 }
 
 .loader {
@@ -124,7 +60,6 @@ main {
     padding: 10px 20px;
     border-radius: 5px;
     z-index: 2001;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
     animation: fadeInOut 5s forwards;
 }
 
@@ -176,6 +111,60 @@ main {
     border-radius: 0px 0px 3px 3px;
 }
 
+/* Sidebar styles */
+.sidebar {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 0; /* Hidden by default */
+    height: 100%;
+    background-color: var(--panel-bg);
+    box-shadow: var(--shadow-color) -5px 0 15px;
+    z-index: 1000;
+    overflow-y: auto;
+    transition: width 0.3s ease-out; /* Smooth transition for sidebar width */
+    display: flex; /* Keep display flex for internal layout */
+    flex-direction: column; /* For vertical stacking of content */
+    padding-bottom: 20px; /* Add some padding at the bottom for better scroll */
+}
+
+.sidebar.active {
+    width: 25%; /* Adjust width as needed for desktop */
+}
+
+/* Responsive adjustments for sidebar */
+@media (max-width: 991px) { /* Tablets and smaller desktops */
+    .sidebar.active {
+        width: 50%;
+    }
+}
+
+@media (max-width: 767px) { /* Mobile devices */
+    .sidebar {
+        width: 100%;
+        height: 0; /* Hidden by default on mobile */
+        bottom: 0;
+        top: auto;
+        box-shadow: var(--shadow-color) 0 -5px 15px;
+        transition: height 0.3s ease-out; /* Update transition for height */
+    }
+
+    .sidebar.active {
+        height: 50%; /* Ensure it's active and half height on mobile */
+        width: 100%;
+    }
+
+    #map {
+        height: 100%; /* Map takes full height when sidebar is hidden */
+        transition: height 0.3s ease-out;
+    }
+
+    #map.sidebar-active { /* Class to apply when sidebar is active on mobile */
+        height: 50%; /* Map takes half height when sidebar is active */
+    }
+}
+
+
 @media (max-width: 600px) {
     .controls-panel {
         top: auto;
@@ -185,4 +174,160 @@ main {
         width: auto;
         max-height: 40vh;
     }
+}
+
+.card {
+    background-color: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    margin: 10px;
+    box-shadow: var(--shadow-color) 0 2px 5px;
+}
+
+.card-body {
+    padding: 15px;
+}
+
+.card-title {
+    font-size: 1.2em;
+    color: var(--text-color);
+    margin-bottom: 10px;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 5px;
+}
+
+p.f-local, p.f-start, p.f-nature, p.f-location {
+    font-size: 1em;
+    color: var(--text-color);
+    margin-bottom: 8px;
+}
+
+.notification-container {
+    display: inline-block;
+    margin-left: 10px;
+}
+
+.assets {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap; /* Allow assets to wrap on smaller screens */
+    margin-top: 10px;
+}
+
+.assets-icon {
+    width: 28px;
+    height: 28px;
+    margin: 0 5px;
+}
+
+.assets-nr {
+    font-size: 1.1em;
+    font-weight: bold;
+    color: var(--text-color);
+    margin-right: 15px;
+}
+
+.dot {
+    height: 24px;
+    width: 24px;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: no-repeat 50%/50%;
+    background-position: center;
+}
+
+.dot.status-99,
+.dot.status-important,
+.dot.status-99-r,
+.dot.status-5,
+.dot.status-7,
+.dot.status-8 {
+    background-image: url("https://fogos.pt/img/ico_fire.svg");
+}
+
+.dot.status-3,
+.dot.status-4 {
+    background-image: url("https://fogos.pt/img/ico_alarm.svg")
+}
+
+.dot.status-6,
+.dot.status-10 {
+    background-image: url("https://fogos.pt/img/ico_pointer.svg");
+}
+
+.dot.status-9 {
+    background-image: url("https://fogos.pt/img/ico_watch.svg");
+}
+
+.dot.status-11,
+.dot.status-12 {
+    background-image: url("https://fogos.pt/img/ico_fake.svg");
+}
+
+.dot.status-99,
+.dot.status-important {
+    background-color: #ff410c
+}
+
+.dot.status-99-r {
+    background-color: #0c5dff
+}
+
+.dot.status-3,
+.dot.status-5,
+.dot.status-6 {
+    background-color: #b81e1f
+}
+
+.dot.status-4 {
+    background-color: #ff6e02
+}
+
+.dot.status-7,
+.dot.status-9 {
+    background-color: #65c4ed
+}
+
+.dot.status-8 {
+    background-color: #8e7e7d
+}
+
+.dot.status-10 {
+    background-color: #6abf59
+}
+
+.dot.status-11,
+.dot.status-12 {
+    background-color: #bdbdbd
+}
+
+.dot.dotInfo,
+.dot.timelineDot {
+    height: 24px;
+    width: 24px;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    float: left;
+    margin-left: -13px;
+    max-width: 100%;
+    max-height: 100%;
+    overflow: visible
+}
+
+/* Flexbox for the row in the sidebar */
+.row {
+    display: flex;
+    flex-wrap: wrap; /* Allows columns to wrap */
+    margin-right: -10px; /* compensate for card margin */
+    margin-left: -10px; /* compensate for card margin */
+}
+
+.col-12 {
+    flex: 0 0 100%;
+    max-width: 100%;
 }
