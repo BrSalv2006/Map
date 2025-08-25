@@ -91,7 +91,9 @@ function processFirePoints(fireFeatures, boundaryGeometry) {
 }
 
 function calculateBurntAreas(satelliteData) {
-    if (satelliteData.points.length < 3);
+    if (satelliteData.points.length < 3) {
+        return;
+    }
     const pointsForClustering = turf.featureCollection(satelliteData.points);
     const clustered = turf.clustersDbscan(pointsForClustering, 15, {
         minPoints: 3
