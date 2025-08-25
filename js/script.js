@@ -74,8 +74,8 @@
             if (previouslyActiveIcon) {
                 changeElementSizeById(previouslyActiveIcon.id, baseSize);
                 previouslyActiveIcon.classList.remove('dot-active');
+                map.flyTo([39.557191, -7.8536599], 7);
             }
-            map.setView([39.557191, -7.8536599], 7);
 
             document.body.classList.remove('sidebar-open');
             document.querySelector('.sidebar').classList.remove('active');
@@ -173,9 +173,9 @@
         addOrRemoveControl(satelliteLayerControl, 'satelliteData');
     }
 
-    function addRiskLegend(mapInstance) {
+    function addRiskLegend(map) {
         if (currentRiskLegend) {
-            mapInstance.removeControl(currentRiskLegend);
+            map.removeControl(currentRiskLegend);
         }
 
         const legend = L.control({
@@ -193,7 +193,7 @@
             }
             return div;
         };
-        legend.addTo(mapInstance);
+        legend.addTo(map);
         currentRiskLegend = legend;
     }
 
@@ -407,7 +407,7 @@
         }
     }
 
-    function addFireMarker(fire, mapInstance, fireImportanceData) {
+    function addFireMarker(fire, map, fireImportanceData) {
         const {
             lat,
             lng,
@@ -435,7 +435,7 @@
 
             if (isActive && isActive[1] == fireId) {
                 iconHtml += ' dot-active';
-                mapInstance.setView([lat, lng], 10);
+                map.flyTo([lat, lng], 10);
             }
 
             iconHtml += `" id="${fireId}"></i>`;
@@ -463,7 +463,7 @@
 
                 changeElementSizeById(marker.id, 48 + marker.sizeFactor);
                 activeIcon.classList.add('dot-active');
-                mapInstance.setView(e.latlng, 10);
+                map.flyTo(e.latlng, 10);
 
                 const momentDate = new Date(fire.updated.sec * 1000).toLocaleString();
 
