@@ -73,7 +73,7 @@ function processFirePoints(fireFeatures, boundaryGeometry) {
         const date = new Date(acqDate).toLocaleString();
 
         const confidenceMap = { 'nominal': 'Normal', 'low': 'Baixa', 'high': 'Alta' };
-        const confidence = confidenceMap[props.confidence] || props.confidence;
+        const confidence = confidenceMap[props.confidence] || props.CONFIDENCE;
 
         const satelliteMap = { 'A': 'Aqua', 'T': 'Terra' };
         const satellite = satelliteMap[props.SATELLITE] || props.satellite;
